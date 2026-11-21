@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -18,6 +20,9 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.modules.auth.models import User
+from app.modules.members.models import Member, MemberSubscription
+from app.modules.shop.models import Order
 
 
 def utc_now() -> datetime:
@@ -88,7 +93,7 @@ class BusinessClient(Base):
     )
 
     # Relationships
-    user: Mapped[Optional["User"]] = relationship()
+    user: Mapped[Optional[User]] = relationship(foreign_keys=[user_id])
     invoices: Mapped[List["Invoice"]] = relationship(
         back_populates="business_client",
     )
@@ -228,18 +233,19 @@ class Invoice(Base):
     )
 
     # Relationships
-    order: Mapped[Optional["Order"]] = relationship()
-    subscription: Mapped[Optional["MemberSubscription"]] = relationship()
-    business_client: Mapped[Optional["BusinessClient"]] = relationship(
+    order: Mapped[Optional[Order]] = relationship(foreign_keys=[order_id])
+    subscription: Mapped[Optional[MemberSubscription]] = relationship(foreign_keys=[subscription_id])
+    business_client: Mapped[Optional[BusinessClient]] = relationship(
         back_populates="invoices",
+        foreign_keys=[business_client_id],
     )
-    member: Mapped[Optional["Member"]] = relationship()
-    created_by: Mapped[Optional["User"]] = relationship()
-    items: Mapped[List["InvoiceItem"]] = relationship(
+    member: Mapped[Optional[Member]] = relationship(foreign_keys=[member_id])
+    created_by: Mapped[Optional[User]] = relationship(foreign_keys=[created_by_id])
+    items: Mapped[List[InvoiceItem]] = relationship(
         back_populates="invoice",
         cascade="all, delete-orphan",
     )
-    allocations: Mapped[List["PaymentAllocation"]] = relationship(
+    allocations: Mapped[List[PaymentAllocation]] = relationship(
         back_populates="invoice",
     )
 
@@ -384,14 +390,14 @@ class Payment(Base):
     )
 
     # Relationships
-    recorded_by: Mapped["User"] = relationship()
-    allocations: Mapped[List["PaymentAllocation"]] = relationship(
+    recorded_by: Mapped[User] = relationship(foreign_keys=[recorded_by_id])
+    allocations: Mapped[List[PaymentAllocation]] = relationship(
         back_populates="payment",
     )
-    receipts: Mapped[List["PaymentReceipt"]] = relationship(
+    receipts: Mapped[List[PaymentReceipt]] = relationship(
         back_populates="payment",
     )
-    refunds: Mapped[List["PaymentRefund"]] = relationship(
+    refunds: Mapped[List[PaymentRefund]] = relationship(
         back_populates="payment",
     )
 
@@ -435,13 +441,15 @@ class PaymentAllocation(Base):
     )
 
     # Relationships
-    payment: Mapped["Payment"] = relationship(
+    payment: Mapped[Payment] = relationship(
         back_populates="allocations",
+        foreign_keys=[payment_id],
     )
-    invoice: Mapped["Invoice"] = relationship(
+    invoice: Mapped[Invoice] = relationship(
         back_populates="allocations",
+        foreign_keys=[invoice_id],
     )
-    reversals: Mapped[List["PaymentAllocationReversal"]] = relationship(
+    reversals: Mapped[List[PaymentAllocationReversal]] = relationship(
         back_populates="allocation",
     )
 
@@ -488,10 +496,11 @@ class PaymentAllocationReversal(Base):
     )
 
     # Relationships
-    allocation: Mapped["PaymentAllocation"] = relationship(
+    allocation: Mapped[PaymentAllocation] = relationship(
         back_populates="reversals",
+        foreign_keys=[allocation_id],
     )
-    reversed_by: Mapped["User"] = relationship()
+    reversed_by: Mapped[User] = relationship(foreign_keys=[reversed_by_id])
 
 
 class PaymentReceipt(Base):
@@ -547,10 +556,11 @@ class PaymentReceipt(Base):
     )
 
     # Relationships
-    payment: Mapped["Payment"] = relationship(
+    payment: Mapped[Payment] = relationship(
         back_populates="receipts",
+        foreign_keys=[payment_id],
     )
-    issued_by: Mapped["User"] = relationship()
+    issued_by: Mapped[User] = relationship(foreign_keys=[issued_by_id])
 
 
 class PaymentRefund(Base):
@@ -601,7 +611,21 @@ class PaymentRefund(Base):
     )
 
     # Relationships
-    payment: Mapped["Payment"] = relationship(
+    payment: Mapped[Payment] = relationship(
         back_populates="refunds",
+        foreign_keys=[payment_id],
     )
-    processed_by: Mapped["User"] = relationship()
+    processed_by: Mapped[User] = relationship(foreign_keys=[processed_by_id])
+
+
+__all__ = [
+    "utc_now",
+    "BusinessClient",
+    "Invoice",
+    "InvoiceItem",
+    "Payment",
+    "PaymentAllocation",
+    "PaymentAllocationReversal",
+    "PaymentReceipt",
+    "PaymentRefund",
+]
