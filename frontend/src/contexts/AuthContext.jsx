@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const roles = user?.roles || [];
-  const isAuthenticated = !!token && !!user;
+  const isAuthenticated = !isLoading && !!token && !!user;
 
   // Verify and rehydrate user profile on mount
   const refreshProfile = useCallback(async () => {
@@ -85,16 +85,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    let serverRevoked = false;
     try {
       // Attempt backend session revocation (increments token_version)
       await apiClient.post('/auth/logout');
+      serverRevoked = true;
     } catch (error) {
-      // Ignore network errors on logout; clean local state regardless
+      // Server-side revocation failed or was unreachable; local state is cleared regardless
+      serverRevoked = false;
     } finally {
       storage.clearAuth();
       setUser(null);
       setToken(null);
     }
+    return { serverRevoked };
   };
 
   const hasRole = useCallback(

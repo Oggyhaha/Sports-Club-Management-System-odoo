@@ -40,8 +40,12 @@ export const TopNavigation = ({ onToggleSidebar }) => {
   const handleLogoutConfirm = async () => {
     setIsLoggingOut(true);
     try {
-      await logout();
-      showToast('Logged out successfully', 'info');
+      const res = await logout();
+      if (res?.serverRevoked) {
+        showToast('Logged out successfully. Session revoked on server.', 'info');
+      } else {
+        showToast('Session cleared locally (server could not be reached).', 'warning');
+      }
     } catch (e) {
       showToast('Session terminated locally', 'warning');
     } finally {

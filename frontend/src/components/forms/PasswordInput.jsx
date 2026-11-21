@@ -46,6 +46,10 @@ export const PasswordInput = forwardRef(
             disabled={disabled}
             required={required}
             placeholder={placeholder}
+            aria-invalid={!!error}
+            aria-describedby={
+              error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined
+            }
             className={`block w-full rounded-lg border text-sm transition-colors duration-150 pl-9 pr-10 py-2 focus:outline-none focus:ring-2 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed ${
               error
                 ? 'border-rose-300 text-rose-900 focus:border-rose-500 focus:ring-rose-200'
@@ -65,8 +69,16 @@ export const PasswordInput = forwardRef(
           </button>
         </div>
 
-        {error && <p className="mt-1.5 text-xs text-rose-600 font-medium">{error}</p>}
-        {helperText && !error && <p className="mt-1 text-xs text-slate-500">{helperText}</p>}
+        {error && (
+          <p id={`${inputId}-error`} className="mt-1.5 text-xs text-rose-600 font-medium">
+            {error}
+          </p>
+        )}
+        {helperText && !error && (
+          <p id={`${inputId}-helper`} className="mt-1 text-xs text-slate-500">
+            {helperText}
+          </p>
+        )}
       </div>
     );
   }

@@ -31,8 +31,15 @@ export const ToastProvider = ({ children }) => {
     info: (message, title = 'Information') => addToast({ type: 'info', message, title }),
   };
 
+  const showToast = useCallback((message, type = 'info', title) => {
+    if (type === 'success') return toast.success(message, title);
+    if (type === 'error') return toast.error(message, title);
+    if (type === 'warning') return toast.warning(message, title);
+    return toast.info(message, title);
+  }, []);
+
   return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast, toast }}>
+    <ToastContext.Provider value={{ toasts, addToast, removeToast, toast, showToast }}>
       {children}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </ToastContext.Provider>
@@ -44,7 +51,13 @@ export const useToast = () => {
   if (!context) {
     throw new Error('useToast must be used within a ToastProvider');
   }
-  return context.toast;
+  return {
+    ...context.toast,
+    toast: context.toast,
+    showToast: context.showToast,
+    addToast: context.addToast,
+    removeToast: context.removeToast,
+  };
 };
 
 const ToastContainer = ({ toasts, onRemove }) => {

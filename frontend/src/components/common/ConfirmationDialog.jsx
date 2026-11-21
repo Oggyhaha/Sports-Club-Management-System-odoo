@@ -17,7 +17,7 @@ export const ConfirmationDialog = ({
   const icons = {
     danger: <AlertCircle className="w-6 h-6 text-rose-600 shrink-0" />,
     warning: <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />,
-    primary: <Info className="w-6 h-6 text-emerald-600 shrink-0" />,
+    primary: <Info className="w-6 h-6 text-sky-600 shrink-0" />,
   };
 
   const buttonVariants = {

@@ -42,13 +42,20 @@ export const Modal = ({
       {/* Modal Dialog */}
       <div className="flex min-h-full items-center justify-center p-4 text-center">
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? 'modal-title' : undefined}
           className={`w-full ${maxWidth} transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-2xl transition-all animate-in zoom-in-95 border border-slate-200/80`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100">
             <div>
-              {title && <h3 className="text-base font-bold text-slate-900">{title}</h3>}
+              {title && (
+                <h3 id="modal-title" className="text-base font-bold text-slate-900">
+                  {title}
+                </h3>
+              )}
               {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
             </div>
             <button

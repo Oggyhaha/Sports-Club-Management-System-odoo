@@ -38,10 +38,14 @@ export const Select = forwardRef(
             name={name}
             disabled={disabled}
             required={required}
+            aria-invalid={!!error}
+            aria-describedby={
+              error ? `${selectId}-error` : helperText ? `${selectId}-helper` : undefined
+            }
             className={`block w-full appearance-none rounded-lg border text-sm transition-colors duration-200 pl-3.5 pr-10 py-2 focus:outline-none focus:ring-2 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed ${
               error
                 ? 'border-rose-300 text-rose-900 focus:border-rose-500 focus:ring-rose-200'
-                : 'border-slate-300 text-slate-900 focus:border-emerald-500 focus:ring-emerald-200 bg-white hover:border-slate-400'
+                : 'border-slate-300 text-slate-900 focus:border-sky-500 focus:ring-sky-200 bg-white hover:border-slate-400'
             } ${selectClassName}`}
             {...props}
           >

@@ -33,15 +33,24 @@ apiClient.interceptors.response.use(
   (error) => {
     const status = error.response ? error.response.status : null;
     const data = error.response ? error.response.data : null;
+    const isLoginRequest = error.config && error.config.url && error.config.url.includes('/auth/login');
 
-    if (status === 401) {
+    if (status === 401 && !isLoginRequest) {
       // 401 Unauthorized: token expired, invalid signature, or revoked token_version
       storage.clearAuth();
       // Dispatch custom event for UI reaction without hard refresh
-      window.dispatchEvent(new CustomEvent('champions:unauthorized', { detail: { message: data?.detail || 'Session expired. Please log in again.' } }));
+      window.dispatchEvent(
+        new CustomEvent('champions:unauthorized', {
+          detail: { message: data?.detail || 'Session expired. Please log in again.' },
+        })
+      );
     } else if (status === 403) {
       // 403 Forbidden: authenticated user lacks sufficient role permission
-      window.dispatchEvent(new CustomEvent('champions:forbidden', { detail: { message: data?.detail || 'You do not have permission to access this resource.' } }));
+      window.dispatchEvent(
+        new CustomEvent('champions:forbidden', {
+          detail: { message: data?.detail || 'You do not have permission to access this resource.' },
+        })
+      );
     }
 
     // Normalize error payload structure for frontend UI consumption

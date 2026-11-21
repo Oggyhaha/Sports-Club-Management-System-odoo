@@ -204,36 +204,101 @@ All navigation links specify allowed role sets. The `Sidebar` component dynamica
 
 ---
 
-## 8. BUILD & VERIFICATION SUMMARY
+## 8. AUTOMATED FRONTEND TEST SUITE (VITEST & TESTING LIBRARY)
+
+Frontend testing is implemented using **Vitest v5.1.1** with **@testing-library/react** and **jsdom**:
+
+```powershell
+Set-Location frontend; pnpm test
+```
+
+### Test Suite Execution Results: 29 Tests in 9 Files (100% Passing)
+```text
+Test Files  9 passed (9)
+     Tests  29 passed (29)
+  Duration  2.41s
+```
+
+| Test File | Test Cases | Areas Verified |
+|---|---|---|
+| `LoginPage.test.jsx` | 5 | Form element accessibility, required field validation, email format checking, successful login with credential persistence, 401 error message display. |
+| `RegisterPage.test.jsx` | 4 | Input fields, 8-character password length constraint, password mismatch validation, successful registration payload submission. |
+| `AuthContext.test.jsx` | 4 | Unauthenticated initial state, active session rehydration on mount via `GET /auth/me`, expired token purging, logout token cleanup. |
+| `ProtectedRoute.test.jsx` | 2 | Unauthenticated redirect to `/login`, authenticated children rendering. |
+| `RoleRoute.test.jsx` | 2 | Unauthorized role redirect to `/unauthorized`, permitted role access. |
+| `TokenHandling.test.jsx` | 2 | Storage token purging on revocation, corrupt JSON resilience. |
+| `Modal.test.jsx` | 4 | Dialog rendering, Escape key dismissal, `ConfirmationDialog` confirm and cancel handlers. |
+| `Sidebar.test.jsx` | 3 | Full admin section rendering for Owner, role filtering hiding staff links for Member, mobile backdrop click dismissal. |
+| `FeedbackStates.test.jsx` | 3 | `LoadingIndicator` custom text, `EmptyState` title/description/action CTA, `ErrorState` retry handler. |
+
+---
+
+## 9. AUTHENTICATION & SECURITY AUDIT FINDINGS
+
+### 1. Token Storage Security & XSS Analysis
+- **`localStorage` is NOT XSS-Safe:** If an attacker succeeds in executing malicious JavaScript within the application origin, any secret stored in `localStorage` can be extracted via `localStorage.getItem()`. 
+- **Mitigating Architecture:**
+  1. *No Arbitrary HTML Rendering:* The application strictly forbids `dangerouslySetInnerHTML`. All user-supplied strings (names, emails) are rendered as sanitized text nodes.
+  2. *Short Expiration Lifetime:* Tokens expire in **30 minutes** (`ACCESS_TOKEN_EXPIRE_MINUTES: 30`). Even in the event of client-side compromise, the window of viability is strictly bounded.
+  3. *Immediate Server-Side Invalidation:* Logging out (`POST /api/v1/auth/logout`) increments `user.token_version` in PostgreSQL. Mismatched token versions are immediately rejected with HTTP 401.
+  4. *Session Revalidation vs. Token Renewal:* The application performs **session revalidation** (`GET /api/v1/auth/me`), NOT token renewal. There is deliberately no "silent token refresh" mechanism because the backend issues single-lifetime access tokens. When 30 minutes expire, the user must re-authenticate.
+  5. *Zero Token Logging:* Tokens are never printed to `console.log`, error messages, or URL parameters.
+
+### 2. Targeted Security Fixes Implemented in Audit
+1. **Isolated Login 401 Handling:** In `lib/axios.js`, 401 errors from `POST /auth/login` are explicitly exempted from triggering the global `champions:unauthorized` event (`!isLoginRequest`). Bad password attempts on the login screen display validation messages without corrupting auth state.
+2. **Server-Side Revocation Awareness on Logout:** `AuthContext.logout()` returns `{ serverRevoked: boolean }`. If the backend is unreachable or returns an error during logout, the UI notifies the user that the session was purged locally rather than falsely claiming server-side revocation succeeded.
+3. **Strict Initial Loading Guard:** `isAuthenticated` is computed as `!isLoading && !!token && !!user`, preventing unverified tokens from rendering protected children before `/auth/me` responds.
+
+---
+
+## 10. ROLE-BASED ACCESS CONTROL AUDIT
+
+Comparing frontend navigation rules against backend endpoint requirements:
+
+| Role | Frontend Permitted Portals | Backend Verification Check | Status |
+|---|---|---|---|
+| `owner` | All Portals & Subsystems | Possesses all endpoints (`/owner/*`, `/finance/*`, `/hr/*`, `/reports/*`) | Verified |
+| `receptionist` | Reception, Bookings, Social Play, Courts, Members, Cafeteria Queue | Blocked from `/owner/reports/*`, `/hr/payroll`, `/shop/inventory` | Verified |
+| `shop_staff` | Shop POS, Inventory, Products, Cafeteria Kitchen, Cafeteria Menu | Blocked from `/hr/*`, `/owner/*`, `/members/*` | Verified |
+| `hr_staff` | HR Employees, Attendance, Leaves, Payroll | Blocked from `/shop/*`, `/owner/reports/*`, `/finance/invoices` | Verified |
+| `member` | Member Self-Service, Bookings Availability, Social Play, Plans | Blocked from all staff/owner management endpoints; restricted to own data | Verified |
+| `business_client` | Corporate Portal, Invoices Ledger | Blocked from staff endpoints; scoped strictly to own corporate invoices | Verified |
+
+---
+
+## 11. BUILD & VERIFICATION SUMMARY
 
 ### 1. Production Build
 ```powershell
 Set-Location frontend; pnpm run build
 ```
 - **Vite Build Result:** Succeeded with **0 errors**.
-  - `dist/index.html`: 0.86 kB (gzip: 0.49 kB)
-  - `dist/assets/index-D5futMxk.css`: 38.26 kB (gzip: 7.41 kB)
-  - `dist/assets/index-DkHB4TE3.js`: 415.66 kB (gzip: 126.44 kB)
+  - `dist/index.html`: 0.86 kB (gzip: 0.48 kB)
+  - `dist/assets/index-CmY8MsoZ.css`: 38.45 kB (gzip: 7.44 kB)
+  - `dist/assets/index-DimhUHii.js`: 416.43 kB (gzip: 126.71 kB)
   - Modules transformed: 1,700
-  - Compilation time: 4.65s
+  - Compilation time: 4.21s
 
 ### 2. Live Backend Contract Integration Check
-Executed `scratch/test_api_integration.py` against live FastAPI application:
-- CORS origins verified: `http://localhost:5173` & `http://127.0.0.1:5173` present.
-- JWT expiry verified: 30 minutes confirmed.
-- Login 401 structure verified: `{"detail": "Invalid email or password."}`.
-- Login 422 validation structure verified.
-- Registration validation verified: Rejects invalid email formats and passwords < 8 characters.
-- Staff invitation accept validation verified: Rejects invalid tokens with HTTP 400.
+Executed `scratch/test_browser_integration.py` against live FastAPI application using isolated `champions_club_test`:
+- Invalid credentials return HTTP 401 with expected error payload.
+- Public registration rejects invalid email format and password < 8 bytes (HTTP 422).
+- Valid registration creates member account with role `member` (HTTP 201).
+- Valid login returns 30-minute JWT with user object (HTTP 200).
+- Session restoration via `GET /api/v1/auth/me` rehydrates profile accurately.
+- Role restriction test: Member calling owner-only `/api/v1/members/plans` returns HTTP 403 Forbidden.
+- Session logout terminates session on server (`token_version` incremented).
+- Reusing revoked token returns HTTP 401 Unauthorized.
+- Invalid staff invitation tokens return HTTP 400.
 
 ### 3. Backend Test Suite Verification
 Executed full Pytest suite:
-- **155 passed in 24.16s** (100% passing across all backend modules).
+- **155 passed in 23.36s** (100% passing across all backend modules).
 - Dev database `champions_club` and test database `champions_club_test` remain completely intact.
 
 ---
 
-## 9. HOW TO RUN THE APPLICATION
+## 12. HOW TO RUN THE APPLICATION
 
 ### 1. Start FastAPI Backend
 ```powershell
@@ -247,3 +312,9 @@ cd "C:\Sports Club Management System\frontend"
 pnpm run dev
 ```
 Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### 3. Run Frontend Automated Tests
+```powershell
+cd "C:\Sports Club Management System\frontend"
+pnpm test
+```

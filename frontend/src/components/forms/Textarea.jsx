@@ -35,16 +35,28 @@ export const Textarea = forwardRef(
           rows={rows}
           disabled={disabled}
           required={required}
+          aria-invalid={!!error}
+          aria-describedby={
+            error ? `${textareaId}-error` : helperText ? `${textareaId}-helper` : undefined
+          }
           className={`block w-full rounded-lg border text-sm transition-colors duration-200 p-3 placeholder:text-slate-400 focus:outline-none focus:ring-2 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed ${
             error
               ? 'border-rose-300 text-rose-900 focus:border-rose-500 focus:ring-rose-200'
-              : 'border-slate-300 text-slate-900 focus:border-emerald-500 focus:ring-emerald-200 bg-white hover:border-slate-400'
+              : 'border-slate-300 text-slate-900 focus:border-sky-500 focus:ring-sky-200 bg-white hover:border-slate-400'
           } ${textareaClassName}`}
           {...props}
         />
 
-        {error && <p className="mt-1.5 text-xs text-rose-600 font-medium">{error}</p>}
-        {helperText && !error && <p className="mt-1 text-xs text-slate-500">{helperText}</p>}
+        {error && (
+          <p id={`${textareaId}-error`} className="mt-1.5 text-xs text-rose-600 font-medium">
+            {error}
+          </p>
+        )}
+        {helperText && !error && (
+          <p id={`${textareaId}-helper`} className="mt-1 text-xs text-slate-500">
+            {helperText}
+          </p>
+        )}
       </div>
     );
   }
