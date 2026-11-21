@@ -133,6 +133,13 @@ export const NAVIGATION_SECTIONS = [
     title: 'Commerce & Cafeteria',
     items: [
       {
+        id: 'shop-pos',
+        label: 'POS Register',
+        path: '/shop/pos',
+        icon: ShoppingBag,
+        roles: [ROLES.OWNER, ROLES.SHOP_STAFF],
+      },
+      {
         id: 'shop-inventory',
         label: 'Inventory Control',
         path: '/shop/inventory',
@@ -145,6 +152,20 @@ export const NAVIGATION_SECTIONS = [
         path: '/shop/products',
         icon: ShoppingBag,
         roles: [ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.MEMBER],
+      },
+      {
+        id: 'shop-orders',
+        label: 'Order Receipts',
+        path: '/shop/orders',
+        icon: Receipt,
+        roles: [ROLES.OWNER, ROLES.SHOP_STAFF],
+      },
+      {
+        id: 'cafeteria-kitchen',
+        label: 'Kitchen Display',
+        path: '/cafeteria/kitchen',
+        icon: Coffee,
+        roles: [ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST],
       },
       {
         id: 'cafeteria-menu',
@@ -163,14 +184,21 @@ export const NAVIGATION_SECTIONS = [
         label: 'Invoices Ledger',
         path: '/finance/invoices',
         icon: Receipt,
-        roles: [ROLES.OWNER, ROLES.BUSINESS_CLIENT],
+        roles: [ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT],
       },
       {
         id: 'finance-payments',
-        label: 'Payment Allocation',
+        label: 'Payments & Allocations',
         path: '/finance/payments',
         icon: CreditCard,
         roles: [ROLES.OWNER, ROLES.RECEPTIONIST],
+      },
+      {
+        id: 'finance-receipts',
+        label: 'Official Receipts',
+        path: '/finance/receipts',
+        icon: Receipt,
+        roles: [ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
       },
       {
         id: 'corporate-clients',
@@ -185,17 +213,38 @@ export const NAVIGATION_SECTIONS = [
     title: 'Human Resources',
     items: [
       {
-        id: 'hr-attendance',
-        label: 'Daily Attendance Audit',
-        path: '/hr/attendance',
-        icon: UserCheck,
+        id: 'hr-employees',
+        label: 'Staff Directory',
+        path: '/hr/employees',
+        icon: Users,
         roles: [ROLES.OWNER, ROLES.HR_STAFF],
       },
       {
+        id: 'hr-departments',
+        label: 'Departments & Designations',
+        path: '/hr/departments',
+        icon: Briefcase,
+        roles: [ROLES.OWNER, ROLES.HR_STAFF],
+      },
+      {
+        id: 'hr-attendance',
+        label: 'Attendance & Punch Clock',
+        path: '/hr/attendance',
+        icon: UserCheck,
+        roles: [ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
+      },
+      {
         id: 'hr-leaves',
-        label: 'Leave Applications Review',
+        label: 'Leave Applications & Review',
         path: '/hr/leaves',
         icon: CalendarDays,
+        roles: [ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
+      },
+      {
+        id: 'hr-salary-structures',
+        label: 'Salary Structures',
+        path: '/hr/salary-structures',
+        icon: FileSpreadsheet,
         roles: [ROLES.OWNER, ROLES.HR_STAFF],
       },
       {

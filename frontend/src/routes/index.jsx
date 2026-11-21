@@ -17,14 +17,34 @@ import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 import AcceptInvitePage from '../pages/auth/AcceptInvitePage';
 
-// Portal Placeholder Pages
+// Executive Portals
 import OwnerDashboardPage from '../pages/owner/OwnerDashboardPage';
 import ReceptionDashboardPage from '../pages/reception/ReceptionDashboardPage';
-import ShopDashboardPage from '../pages/shop/ShopDashboardPage';
-import CafeteriaDashboardPage from '../pages/cafeteria/CafeteriaDashboardPage';
-import HRDashboardPage from '../pages/hr/HRDashboardPage';
 import MemberDashboardPage from '../pages/member/MemberDashboardPage';
 import CorporateDashboardPage from '../pages/corporate/CorporateDashboardPage';
+
+// Operational Pages (Milestone H5 & H6)
+import MembersPage from '../pages/members/MembersPage';
+import MembershipPlansPage from '../pages/members/MembershipPlansPage';
+import CourtsPage from '../pages/courts/CourtsPage';
+import BookingsPage from '../pages/bookings/BookingsPage';
+import SocialPlayPage from '../pages/social-play/SocialPlayPage';
+import ShopPosPage from '../pages/shop/ShopPosPage';
+import ShopInventoryPage from '../pages/shop/ShopInventoryPage';
+import ShopProductsPage from '../pages/shop/ShopProductsPage';
+import ShopOrdersPage from '../pages/shop/ShopOrdersPage';
+import CafeteriaKitchenPage from '../pages/cafeteria/CafeteriaKitchenPage';
+import CafeteriaMenuPage from '../pages/cafeteria/CafeteriaMenuPage';
+import EmployeesPage from '../pages/hr/EmployeesPage';
+import DepartmentsPage from '../pages/hr/DepartmentsPage';
+import AttendancePage from '../pages/hr/AttendancePage';
+import LeavesPage from '../pages/hr/LeavesPage';
+import SalaryStructuresPage from '../pages/hr/SalaryStructuresPage';
+import PayrollPage from '../pages/hr/PayrollPage';
+import BusinessClientsPage from '../pages/finance/BusinessClientsPage';
+import InvoicesPage from '../pages/finance/InvoicesPage';
+import PaymentsPage from '../pages/finance/PaymentsPage';
+import ReceiptsPage from '../pages/finance/ReceiptsPage';
 
 // Error & Feedback Pages
 import Unauthorized from '../pages/Unauthorized';
@@ -106,116 +126,7 @@ export const AppRoutes = () => {
           }
         />
 
-        {/* Shop Counter & Inventory */}
-        <Route
-          path="/shop/pos"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF]}>
-              <ShopDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route path="/shop" element={<Navigate to="/shop/pos" replace />} />
-        <Route
-          path="/shop/inventory"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF]}>
-              <ShopDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="/shop/products"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.MEMBER]}>
-              <ShopDashboardPage />
-            </RoleRoute>
-          }
-        />
-
-        {/* Cafeteria & Kitchen Queue */}
-        <Route
-          path="/cafeteria/kitchen"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST]}>
-              <CafeteriaDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route path="/cafeteria" element={<Navigate to="/cafeteria/kitchen" replace />} />
-        <Route
-          path="/cafeteria/menu"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
-              <CafeteriaDashboardPage />
-            </RoleRoute>
-          }
-        />
-
-        {/* HR & Payroll */}
-        <Route
-          path="/hr/employees"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
-              <HRDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route path="/hr" element={<Navigate to="/hr/employees" replace />} />
-        <Route
-          path="/hr/attendance"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
-              <HRDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="/hr/leaves"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
-              <HRDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="/hr/payroll"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
-              <HRDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="/hr/me"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
-              <HRDashboardPage />
-            </RoleRoute>
-          }
-        />
-
-        {/* Member Portal */}
-        <Route
-          path="/member"
-          element={
-            <RoleRoute allowedRoles={[ROLES.MEMBER, ROLES.OWNER]}>
-              <MemberDashboardPage />
-            </RoleRoute>
-          }
-        />
-
-        {/* Corporate Client Portal */}
-        <Route
-          path="/corporate"
-          element={
-            <RoleRoute allowedRoles={[ROLES.BUSINESS_CLIENT, ROLES.OWNER]}>
-              <CorporateDashboardPage />
-            </RoleRoute>
-          }
-        />
-
-        {/* Shared Facility & Booking Navigation Routes */}
+        {/* Court Operations */}
         <Route
           path="/bookings/availability"
           element={
@@ -228,15 +139,7 @@ export const AppRoutes = () => {
           path="/bookings"
           element={
             <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST]}>
-              <ReceptionDashboardPage />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="/social-play"
-          element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
-              <ReceptionDashboardPage />
+              <BookingsPage />
             </RoleRoute>
           }
         />
@@ -244,17 +147,25 @@ export const AppRoutes = () => {
           path="/courts"
           element={
             <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST]}>
-              <ReceptionDashboardPage />
+              <CourtsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/social-play"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
+              <SocialPlayPage />
             </RoleRoute>
           }
         />
 
-        {/* Shared Membership Routes */}
+        {/* Memberships & Subscriptions */}
         <Route
           path="/members"
           element={
             <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST]}>
-              <ReceptionDashboardPage />
+              <MembersPage />
             </RoleRoute>
           }
         />
@@ -262,17 +173,138 @@ export const AppRoutes = () => {
           path="/members/plans"
           element={
             <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
-              <MemberDashboardPage />
+              <MembershipPlansPage />
             </RoleRoute>
           }
         />
 
-        {/* Shared Finance Routes */}
+        {/* Shop Counter & Inventory */}
+        <Route
+          path="/shop/pos"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF]}>
+              <ShopPosPage />
+            </RoleRoute>
+          }
+        />
+        <Route path="/shop" element={<Navigate to="/shop/pos" replace />} />
+        <Route
+          path="/shop/inventory"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF]}>
+              <ShopInventoryPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/shop/products"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.MEMBER]}>
+              <ShopProductsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/shop/orders"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF]}>
+              <ShopOrdersPage />
+            </RoleRoute>
+          }
+        />
+
+        {/* Cafeteria & Kitchen Queue */}
+        <Route
+          path="/cafeteria/kitchen"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST]}>
+              <CafeteriaKitchenPage />
+            </RoleRoute>
+          }
+        />
+        <Route path="/cafeteria" element={<Navigate to="/cafeteria/kitchen" replace />} />
+        <Route
+          path="/cafeteria/menu"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
+              <CafeteriaMenuPage />
+            </RoleRoute>
+          }
+        />
+
+        {/* HR & Payroll */}
+        <Route
+          path="/hr/employees"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
+              <EmployeesPage />
+            </RoleRoute>
+          }
+        />
+        <Route path="/hr" element={<Navigate to="/hr/employees" replace />} />
+        <Route
+          path="/hr/departments"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
+              <DepartmentsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/hr/attendance"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+              <AttendancePage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/hr/leaves"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+              <LeavesPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/hr/salary-structures"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
+              <SalaryStructuresPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/hr/payroll"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
+              <PayrollPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/hr/me"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+              <AttendancePage />
+            </RoleRoute>
+          }
+        />
+
+        {/* Finance & Corporate Administration */}
+        <Route
+          path="/finance/clients"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER]}>
+              <BusinessClientsPage />
+            </RoleRoute>
+          }
+        />
         <Route
           path="/finance/invoices"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.BUSINESS_CLIENT]}>
-              <CorporateDashboardPage />
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT]}>
+              <InvoicesPage />
             </RoleRoute>
           }
         />
@@ -280,15 +312,35 @@ export const AppRoutes = () => {
           path="/finance/payments"
           element={
             <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST]}>
-              <ReceptionDashboardPage />
+              <PaymentsPage />
             </RoleRoute>
           }
         />
         <Route
-          path="/finance/clients"
+          path="/finance/receipts"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER]}>
-              <OwnerDashboardPage />
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+              <ReceiptsPage />
+            </RoleRoute>
+          }
+        />
+
+        {/* Member Portal (Reserved for H7) */}
+        <Route
+          path="/member"
+          element={
+            <RoleRoute allowedRoles={[ROLES.MEMBER, ROLES.OWNER]}>
+              <MemberDashboardPage />
+            </RoleRoute>
+          }
+        />
+
+        {/* Corporate Client Portal (Reserved for H7) */}
+        <Route
+          path="/corporate"
+          element={
+            <RoleRoute allowedRoles={[ROLES.BUSINESS_CLIENT, ROLES.OWNER]}>
+              <CorporateDashboardPage />
             </RoleRoute>
           }
         />
