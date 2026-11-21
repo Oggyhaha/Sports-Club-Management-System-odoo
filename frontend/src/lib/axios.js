@@ -26,6 +26,8 @@ apiClient.interceptors.request.use(
 );
 
 // Response Interceptor: Centralize error handling & authentication lifecycle
+let isDispatchingUnauthorized = false;
+
 apiClient.interceptors.response.use(
   (response) => {
     return response;
@@ -38,12 +40,19 @@ apiClient.interceptors.response.use(
     if (status === 401 && !isLoginRequest) {
       // 401 Unauthorized: token expired, invalid signature, or revoked token_version
       storage.clearAuth();
-      // Dispatch custom event for UI reaction without hard refresh
-      window.dispatchEvent(
-        new CustomEvent('champions:unauthorized', {
-          detail: { message: data?.detail || 'Session expired. Please log in again.' },
-        })
-      );
+
+      // Guard against concurrent 401 response storm dispatching repeated events
+      if (!isDispatchingUnauthorized) {
+        isDispatchingUnauthorized = true;
+        window.dispatchEvent(
+          new CustomEvent('champions:unauthorized', {
+            detail: { message: data?.detail || 'Session expired. Please log in again.' },
+          })
+        );
+        setTimeout(() => {
+          isDispatchingUnauthorized = false;
+        }, 500);
+      }
     } else if (status === 403) {
       // 403 Forbidden: authenticated user lacks sufficient role permission
       window.dispatchEvent(

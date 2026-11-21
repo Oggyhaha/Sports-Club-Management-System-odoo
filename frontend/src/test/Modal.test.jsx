@@ -1,8 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Modal from '../components/common/Modal';
 import ConfirmationDialog from '../components/common/ConfirmationDialog';
+
+const ModalWithTrigger = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div>
+      <button data-testid="trigger-btn" onClick={() => setIsOpen(true)}>
+        Open Modal
+      </button>
+      <button data-testid="outside-btn">Outside Background Button</button>
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Accessible Dialog">
+        <div>
+          <input data-testid="first-input" placeholder="First Input" />
+          <button data-testid="middle-btn">Middle Action</button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
 
 describe('Modal & ConfirmationDialog Components', () => {
   it('renders modal dialog content when isOpen is true', () => {
@@ -37,6 +55,53 @@ describe('Modal & ConfirmationDialog Components', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('traps keyboard Tab navigation inside the modal', () => {
+    render(
+      <Modal isOpen={true} onClose={() => {}} title="Focus Trap Modal">
+        <div>
+          <button data-testid="modal-btn-1">Button 1</button>
+          <button data-testid="modal-btn-2">Button 2</button>
+        </div>
+      </Modal>
+    );
+
+    const closeBtn = screen.getByLabelText(/Close dialog/i);
+    const btn1 = screen.getByTestId('modal-btn-1');
+    const btn2 = screen.getByTestId('modal-btn-2');
+
+    // Focus last interactive button (btn2) and press Tab
+    btn2.focus();
+    expect(document.activeElement).toBe(btn2);
+
+    fireEvent.keyDown(window, { key: 'Tab' });
+    // Tab from last element loops back to first interactive element (closeBtn)
+    expect(document.activeElement).toBe(closeBtn);
+
+    // Shift + Tab from closeBtn loops backward to last interactive element (btn2)
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(btn2);
+  });
+
+  it('restores focus to the triggering element upon closing', async () => {
+    render(<ModalWithTrigger />);
+
+    const triggerBtn = screen.getByTestId('trigger-btn');
+    triggerBtn.focus();
+    expect(document.activeElement).toBe(triggerBtn);
+
+    // Click to open modal
+    fireEvent.click(triggerBtn);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Close the modal
+    const closeBtn = screen.getByLabelText(/Close dialog/i);
+    fireEvent.click(closeBtn);
+
+    // Verify modal removed and focus returned to trigger
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(triggerBtn);
   });
 
   it('ConfirmationDialog executes onConfirm and onCancel callbacks', () => {

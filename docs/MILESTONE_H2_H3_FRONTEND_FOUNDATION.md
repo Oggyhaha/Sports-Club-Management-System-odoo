@@ -212,10 +212,10 @@ Frontend testing is implemented using **Vitest v5.1.1** with **@testing-library/
 Set-Location frontend; pnpm test
 ```
 
-### Test Suite Execution Results: 29 Tests in 9 Files (100% Passing)
+### Test Suite Execution Results: 32 Tests in 9 Files (100% Passing)
 ```text
 Test Files  9 passed (9)
-     Tests  29 passed (29)
+     Tests  32 passed (32)
   Duration  2.41s
 ```
 
@@ -226,8 +226,8 @@ Test Files  9 passed (9)
 | `AuthContext.test.jsx` | 4 | Unauthenticated initial state, active session rehydration on mount via `GET /auth/me`, expired token purging, logout token cleanup. |
 | `ProtectedRoute.test.jsx` | 2 | Unauthenticated redirect to `/login`, authenticated children rendering. |
 | `RoleRoute.test.jsx` | 2 | Unauthorized role redirect to `/unauthorized`, permitted role access. |
-| `TokenHandling.test.jsx` | 2 | Storage token purging on revocation, corrupt JSON resilience. |
-| `Modal.test.jsx` | 4 | Dialog rendering, Escape key dismissal, `ConfirmationDialog` confirm and cancel handlers. |
+| `TokenHandling.test.jsx` | 3 | Storage token purging on revocation, corrupt JSON resilience, concurrent 401 debounced single-flight event dispatch. |
+| `Modal.test.jsx` | 6 | Dialog rendering, Escape key dismissal, keyboard Tab/Shift+Tab focus trap, focus restoration to trigger element upon close, `ConfirmationDialog` confirm/cancel handlers. |
 | `Sidebar.test.jsx` | 3 | Full admin section rendering for Owner, role filtering hiding staff links for Member, mobile backdrop click dismissal. |
 | `FeedbackStates.test.jsx` | 3 | `LoadingIndicator` custom text, `EmptyState` title/description/action CTA, `ErrorState` retry handler. |
 
@@ -239,15 +239,18 @@ Test Files  9 passed (9)
 - **`localStorage` is NOT XSS-Safe:** If an attacker succeeds in executing malicious JavaScript within the application origin, any secret stored in `localStorage` can be extracted via `localStorage.getItem()`. 
 - **Mitigating Architecture:**
   1. *No Arbitrary HTML Rendering:* The application strictly forbids `dangerouslySetInnerHTML`. All user-supplied strings (names, emails) are rendered as sanitized text nodes.
-  2. *Short Expiration Lifetime:* Tokens expire in **30 minutes** (`ACCESS_TOKEN_EXPIRE_MINUTES: 30`). Even in the event of client-side compromise, the window of viability is strictly bounded.
+  2. *Short Expiration Lifetime Measured Strictly from Issuance:* Tokens expire in **30 minutes** (`ACCESS_TOKEN_EXPIRE_MINUTES: 30`). This validity window is measured **strictly from token issuance (`iat`)**, NOT from user inactivity or idle timeout. There is no rolling idle session extension.
   3. *Immediate Server-Side Invalidation:* Logging out (`POST /api/v1/auth/logout`) increments `user.token_version` in PostgreSQL. Mismatched token versions are immediately rejected with HTTP 401.
-  4. *Session Revalidation vs. Token Renewal:* The application performs **session revalidation** (`GET /api/v1/auth/me`), NOT token renewal. There is deliberately no "silent token refresh" mechanism because the backend issues single-lifetime access tokens. When 30 minutes expire, the user must re-authenticate.
+  4. *Session Revalidation vs. Token Renewal:* The application performs **session revalidation** (`GET /api/v1/auth/me`), NOT token renewal. There is deliberately no refresh-token renewal endpoint. Once 30 minutes expire, subsequent API requests return HTTP 401 and the user must re-authenticate.
   5. *Zero Token Logging:* Tokens are never printed to `console.log`, error messages, or URL parameters.
 
-### 2. Targeted Security Fixes Implemented in Audit
+### 2. Targeted Security & Concurrency Fixes Implemented in Audit
 1. **Isolated Login 401 Handling:** In `lib/axios.js`, 401 errors from `POST /auth/login` are explicitly exempted from triggering the global `champions:unauthorized` event (`!isLoginRequest`). Bad password attempts on the login screen display validation messages without corrupting auth state.
-2. **Server-Side Revocation Awareness on Logout:** `AuthContext.logout()` returns `{ serverRevoked: boolean }`. If the backend is unreachable or returns an error during logout, the UI notifies the user that the session was purged locally rather than falsely claiming server-side revocation succeeded.
-3. **Strict Initial Loading Guard:** `isAuthenticated` is computed as `!isLoading && !!token && !!user`, preventing unverified tokens from rendering protected children before `/auth/me` responds.
+2. **Concurrent 401 Single-Flight Guard:** A debounce flag (`isDispatchingUnauthorized`) in `lib/axios.js` prevents multiple parallel requests failing with 401 (e.g. on route change after expiry) from firing event storms or duplicate toasts.
+3. **Server-Side Revocation Awareness on Logout:** `AuthContext.logout()` returns `{ serverRevoked: boolean }`. If the backend is unreachable or returns an error during logout, the UI notifies the user that the session was purged locally rather than falsely claiming server-side revocation succeeded.
+4. **Strict Initial Loading Guard:** `isAuthenticated` is computed as `!isLoading && !!token && !!user`, preventing unverified tokens from rendering protected children before `/auth/me` responds.
+5. **Modal Keyboard Focus Trap & Return:** In `Modal.jsx`, Tab and Shift+Tab navigation is actively trapped within the dialog boundary, background scroll is locked, and focus is returned to the triggering element upon closing.
+6. **Automation Scope Clarification:** Live HTTP REST API integration and database integrity were fully tested against live FastAPI backend endpoints on `http://127.0.0.1:8000`. Full end-to-end browser UI automation (e.g. Playwright / Selenium) was not run; all interactive UI, routing, and accessibility behaviors were verified via Vitest and Testing Library in JSDOM.
 
 ---
 
