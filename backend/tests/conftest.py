@@ -48,6 +48,12 @@ def clean_test_artifacts():
     yield
     db = TestingSessionLocal()
     try:
+        db.execute(text("DELETE FROM order_status_history"))
+        db.execute(text("DELETE FROM order_items"))
+        db.execute(text("DELETE FROM inventory_movements"))
+        db.execute(text("DELETE FROM orders"))
+        db.execute(text("DELETE FROM products"))
+        db.execute(text("DELETE FROM product_categories"))
         db.execute(text("DELETE FROM social_play_participants"))
         db.execute(text("DELETE FROM social_play_sessions"))
         db.execute(text("DELETE FROM member_subscriptions"))
@@ -170,4 +176,66 @@ def member_user():
 @pytest.fixture
 def member_headers(member_user):
     token = create_access_token(user_id=member_user.id, token_version=member_user.token_version)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def shop_staff_user():
+    db = TestingSessionLocal()
+    try:
+        user = User(
+            email=f"shop_staff_{uuid.uuid4().hex[:6]}@example.com",
+            hashed_password=hash_password("ShopStaffPass123!"),
+            full_name="Test Shop Staff",
+            is_active=True,
+            token_version=1,
+        )
+        shop_role = db.query(Role).filter(Role.name == RoleEnum.SHOP_STAFF.value).first()
+        if not shop_role:
+            shop_role = Role(name=RoleEnum.SHOP_STAFF.value, description="Shop Staff")
+            db.add(shop_role)
+            db.flush()
+        user.roles.append(shop_role)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def shop_staff_headers(shop_staff_user):
+    token = create_access_token(user_id=shop_staff_user.id, token_version=shop_staff_user.token_version)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def hr_staff_user():
+    db = TestingSessionLocal()
+    try:
+        user = User(
+            email=f"hr_staff_{uuid.uuid4().hex[:6]}@example.com",
+            hashed_password=hash_password("HrStaffPass123!"),
+            full_name="Test HR Staff",
+            is_active=True,
+            token_version=1,
+        )
+        hr_role = db.query(Role).filter(Role.name == RoleEnum.HR_STAFF.value).first()
+        if not hr_role:
+            hr_role = Role(name=RoleEnum.HR_STAFF.value, description="HR Staff")
+            db.add(hr_role)
+            db.flush()
+        user.roles.append(hr_role)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def hr_staff_headers(hr_staff_user):
+    token = create_access_token(user_id=hr_staff_user.id, token_version=hr_staff_user.token_version)
     return {"Authorization": f"Bearer {token}"}

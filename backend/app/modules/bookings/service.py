@@ -16,7 +16,7 @@ from app.modules.bookings.schemas import (
     SocialPlaySessionUpdate,
 )
 from app.modules.courts.models import Court
-from app.modules.members.models import Member
+from app.modules.members.models import Member, MemberSubscription
 
 
 # ---------------------------------------------------------------------------
@@ -49,8 +49,13 @@ def create_booking(db: Session, booking_in: BookingCreate) -> Booking:
             detail="Booking start time must align to a 30-minute boundary (e.g. :00 or :30) with zero seconds.",
         )
 
-    # Rule 2: Derive 60-minute session end time
+    # Rule 2: Derive 60-minute session end time and enforce operating hours (06:00 to 22:00)
     req_end = req_start + timedelta(minutes=60)
+    if req_start.hour < 6 or req_end.hour > 22 or (req_end.hour == 22 and req_end.minute > 0):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bookings must be scheduled within facility operating hours (06:00 to 22:00).",
+        )
 
     # Rule 3 & 4: Concurrency control via row-level lock on the court
     court_stmt = (
@@ -152,8 +157,37 @@ def create_booking(db: Session, booking_in: BookingCreate) -> Booking:
                 detail=f"Member '{member.full_name}' has reached the maximum limit of 2 active bookings for this calendar day.",
             )
 
-        # Calculate Price with Member Tier Discount
-        discount_pct = member.plan.court_discount_percent if member.plan else Decimal("0.00")
+        # Calculate Price with Member Tier Discount based on valid active subscription
+        active_sub_stmt = (
+            select(MemberSubscription)
+            .where(
+                MemberSubscription.member_id == member.id,
+                MemberSubscription.subscription_status == "active",
+                MemberSubscription.start_date <= req_start.date(),
+                MemberSubscription.end_date >= req_start.date(),
+            )
+            .order_by(MemberSubscription.end_date.desc())
+        )
+        active_sub = db.scalars(active_sub_stmt).first()
+
+        if active_sub:
+            discount_pct = active_sub.court_discount_snapshot
+        else:
+            # Check if member has subscription history
+            any_sub_stmt = select(func.count(MemberSubscription.id)).where(
+                MemberSubscription.member_id == member.id
+            )
+            sub_count = db.scalar(any_sub_stmt) or 0
+            if sub_count > 0:
+                # Subscriptions exist but none are active on booking date -> 0% discount
+                discount_pct = Decimal("0.00")
+            else:
+                # Legacy member without subscription records: check member dates & plan
+                if member.is_active and member.start_date <= req_start.date() <= member.expiry_date and member.plan:
+                    discount_pct = member.plan.court_discount_percent
+                else:
+                    discount_pct = Decimal("0.00")
+
         discount_factor = (Decimal("100.00") - discount_pct) / Decimal("100.00")
         calculated_fee = (court.hourly_rate * discount_factor).quantize(Decimal("0.01"))
     else:

@@ -6,6 +6,14 @@ from app.modules.auth.models import Role, UserRole, User, RoleEnum, Invitation
 from app.modules.members.models import MembershipPlan, Member, MemberSubscription
 from app.modules.courts.models import Court
 from app.modules.bookings.models import Booking, SocialPlaySession, SocialPlayParticipant
+from app.modules.shop.models import (
+    ProductCategory,
+    Product,
+    Order,
+    OrderItem,
+    InventoryMovement,
+    OrderStatusHistory,
+)
 
 __all__ = [
     "Base",
@@ -21,4 +29,10 @@ __all__ = [
     "Booking",
     "SocialPlaySession",
     "SocialPlayParticipant",
+    "ProductCategory",
+    "Product",
+    "Order",
+    "OrderItem",
+    "InventoryMovement",
+    "OrderStatusHistory",
 ]

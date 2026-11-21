@@ -90,17 +90,22 @@ def get_current_user(
     return user
 
 
-def require_roles(*allowed_roles: Union[RoleEnum, str]) -> Callable[[User], User]:
+def require_roles(*allowed_roles: Union[RoleEnum, str, list, tuple, set]) -> Callable[[User], User]:
     """
     Reusable role-based access control dependency factory.
     Verifies that the authenticated user possesses at least one of the specified allowed roles.
     Roles are queried directly from the database-backed User.roles relationship.
+    Supports both varargs (require_roles(A, B)) and collections (require_roles([A, B])).
     Rejects unauthorized users with HTTP 403 Forbidden.
     """
-    # Canonicalize allowed roles to string set
-    allowed_role_set = {
-        r.value if isinstance(r, RoleEnum) else str(r) for r in allowed_roles
-    }
+    # Canonicalize allowed roles to string set (handling potential lists/tuples)
+    allowed_role_set = set()
+    for r in allowed_roles:
+        if isinstance(r, (list, tuple, set)):
+            for item in r:
+                allowed_role_set.add(item.value if isinstance(item, RoleEnum) else str(item))
+        else:
+            allowed_role_set.add(r.value if isinstance(r, RoleEnum) else str(r))
 
     def role_checker(
         current_user: User = Depends(get_current_user),
