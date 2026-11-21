@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
@@ -10,6 +11,18 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.modules.members.models import Member
+
+
+class RoleEnum(str, Enum):
+    """
+    Centralized canonical role names for RBAC authorization.
+    """
+    OWNER = "owner"
+    RECEPTIONIST = "receptionist"
+    MEMBER = "member"
+    SHOP_STAFF = "shop_staff"
+    HR_STAFF = "hr_staff"
+    BUSINESS_CLIENT = "business_client"
 
 
 class Role(Base):
@@ -133,3 +146,62 @@ class User(Base):
         back_populates="user",
         uselist=False,
     )
+
+
+class Invitation(Base):
+    """
+    Represents single-use invitations for staff (receptionist, shop_staff, hr_staff)
+    and business_client accounts.
+    Stores only the SHA-256 hash of the cryptographically random token.
+    """
+    __tablename__ = "invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    email: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+        index=True,
+    )
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    invited_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending",
+        index=True,
+    )  # 'pending', 'accepted', 'expired', 'revoked'
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    accepted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Relationships
+    role: Mapped["Role"] = relationship("Role")
+    inviter: Mapped["User"] = relationship("User")

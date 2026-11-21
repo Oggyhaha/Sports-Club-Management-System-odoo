@@ -7,7 +7,7 @@ client = TestClient(app)
 
 
 def test_list_courts_returns_seeded_courts():
-    """Verify that courts endpoint lists the default seeded courts."""
+    """Verify that courts endpoint is public and lists default seeded courts."""
     response = client.get("/api/v1/courts")
     assert response.status_code == 200
     courts = response.json()
@@ -31,8 +31,8 @@ def test_list_courts_filter_by_sport():
     assert all(c["sport_type"] == "cricket" for c in cricket_courts)
 
 
-def test_create_and_get_court():
-    """Verify creating a new court and retrieving it by UUID."""
+def test_create_and_get_court(owner_headers):
+    """Verify owner creating a new court and retrieving it by UUID."""
     unique_name = f"Padel Court {uuid.uuid4().hex[:6]}"
     payload = {
         "name": unique_name,
@@ -41,18 +41,17 @@ def test_create_and_get_court():
         "is_active": True,
     }
 
-    create_res = client.post("/api/v1/courts", json=payload)
+    create_res = client.post("/api/v1/courts", json=payload, headers=owner_headers)
     assert create_res.status_code == 201
     court = create_res.json()
     assert court["name"] == unique_name
     assert court["sport_type"] == "padel"
     assert Decimal(str(court["hourly_rate"])) == Decimal("35.00")
     assert court["is_active"] is True
-    assert "id" in court
 
     court_id = court["id"]
 
-    # Fetch by ID
+    # Public get
     get_res = client.get(f"/api/v1/courts/{court_id}")
     assert get_res.status_code == 200
     fetched = get_res.json()
@@ -60,26 +59,31 @@ def test_create_and_get_court():
     assert fetched["name"] == unique_name
 
 
-def test_create_court_duplicate_name_conflict():
+def test_create_court_duplicate_name_conflict(owner_headers):
     """Verify that creating a court with an existing name returns 409 Conflict."""
+    unique_name = f"Duplicate Court {uuid.uuid4().hex[:6]}"
     payload = {
-        "name": "Tennis Court 1",  # already exists from seed
+        "name": unique_name,
         "sport_type": "tennis",
-        "hourly_rate": 40.00,
+        "hourly_rate": 45.00,
     }
-    response = client.post("/api/v1/courts", json=payload)
-    assert response.status_code == 409
-    assert "already exists" in response.json()["detail"]
+
+    res1 = client.post("/api/v1/courts", json=payload, headers=owner_headers)
+    assert res1.status_code == 201
+
+    res2 = client.post("/api/v1/courts", json=payload, headers=owner_headers)
+    assert res2.status_code == 409
+    assert "already exists" in res2.json()["detail"]
 
 
-def test_create_court_invalid_hourly_rate():
-    """Verify that a negative hourly rate is rejected with 422 Unprocessable Entity."""
+def test_create_court_negative_hourly_rate(owner_headers):
+    """Verify that negative hourly rate is rejected by Pydantic with 422 Unprocessable Entity."""
     payload = {
-        "name": f"Invalid Rate Court {uuid.uuid4().hex[:4]}",
+        "name": f"Invalid Rate Court {uuid.uuid4().hex[:6]}",
         "sport_type": "tennis",
         "hourly_rate": -10.00,
     }
-    response = client.post("/api/v1/courts", json=payload)
+    response = client.post("/api/v1/courts", json=payload, headers=owner_headers)
     assert response.status_code == 422
 
 
@@ -91,30 +95,42 @@ def test_get_court_not_found():
     assert "not found" in response.json()["detail"]
 
 
-def test_update_court():
-    """Verify updating court hourly rate and active status."""
-    unique_name = f"Court To Update {uuid.uuid4().hex[:6]}"
+def test_update_court(receptionist_headers, owner_headers):
+    """Verify staff updating court details, hourly rate, and active status."""
+    unique_name = f"Update Court {uuid.uuid4().hex[:6]}"
     create_res = client.post(
         "/api/v1/courts",
+        headers=owner_headers,
         json={
             "name": unique_name,
-            "sport_type": "tennis",
-            "hourly_rate": 40.00,
-            "is_active": True,
+            "sport_type": "badminton",
+            "hourly_rate": 20.00,
         },
     )
     assert create_res.status_code == 201
     court_id = create_res.json()["id"]
 
-    # Update hourly rate and deactivate court
+    # Receptionist updates rate and deactivates court
     update_res = client.put(
         f"/api/v1/courts/{court_id}",
+        headers=receptionist_headers,
         json={
-            "hourly_rate": 55.00,
+            "hourly_rate": 25.00,
             "is_active": False,
         },
     )
     assert update_res.status_code == 200
     updated = update_res.json()
-    assert Decimal(str(updated["hourly_rate"])) == Decimal("55.00")
+    assert Decimal(str(updated["hourly_rate"])) == Decimal("25.00")
     assert updated["is_active"] is False
+
+
+def test_receptionist_forbidden_from_creating_court(receptionist_headers):
+    """Verify that receptionist cannot create a new court (Owner only)."""
+    payload = {
+        "name": f"Unauthorized Court {uuid.uuid4().hex[:6]}",
+        "sport_type": "tennis",
+        "hourly_rate": 40.00,
+    }
+    res = client.post("/api/v1/courts", json=payload, headers=receptionist_headers)
+    assert res.status_code == 403

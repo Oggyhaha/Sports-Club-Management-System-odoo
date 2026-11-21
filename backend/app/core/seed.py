@@ -1,17 +1,34 @@
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
-from app.models import MembershipPlan, Court, Member, Booking
+from app.models import MembershipPlan, Court, Member, Booking, Role, RoleEnum
 
 
 def seed_default_data():
     """
-    Seeds initial membership plans and initial courts if they do not already exist.
+    Seeds initial membership plans, initial courts, and canonical roles if they do not already exist.
     Idempotent: safe to run multiple times.
     """
     db: Session = SessionLocal()
     try:
-        # 1. Default Membership Plans
+        # 1. Canonical Roles
+        default_roles = [
+            {"name": RoleEnum.OWNER.value, "description": "Club Owner with full administrative privileges"},
+            {"name": RoleEnum.RECEPTIONIST.value, "description": "Front-desk receptionist managing members and bookings"},
+            {"name": RoleEnum.MEMBER.value, "description": "Registered sports club member with booking privileges"},
+            {"name": RoleEnum.SHOP_STAFF.value, "description": "Pro-shop staff managing equipment and inventory"},
+            {"name": RoleEnum.HR_STAFF.value, "description": "HR personnel managing staff, payroll, and leave"},
+            {"name": RoleEnum.BUSINESS_CLIENT.value, "description": "Corporate client managing corporate bookings and invoices"},
+        ]
+
+        for role_data in default_roles:
+            existing = db.query(Role).filter(Role.name == role_data["name"]).first()
+            if not existing:
+                role = Role(**role_data)
+                db.add(role)
+                print(f"Seeded role: {role.name}")
+
+        # 2. Default Membership Plans
         default_plans = [
             {
                 "name": "Gold",

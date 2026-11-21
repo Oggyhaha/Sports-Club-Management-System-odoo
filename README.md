@@ -24,33 +24,43 @@ This is an MVP. Shop inventory, cafeteria orders, online enquiries, staff manage
 | **Stage 4** | **Member Backend** | ✅ Completed | Pydantic schemas, service layer, REST endpoints (`/api/v1/members`), 17 automated tests passing. |
 | **Stage 5** | **Court Backend** | ✅ Completed | Pydantic schemas, service layer, REST endpoints (`/api/v1/courts`), 24 automated tests passing. |
 | **Stage 6** | **Booking Engine** | ✅ Completed | 60-min sessions, 30-min boundaries, 2/day quota, overlap conflict prevention, tier discounts, 31 automated tests passing. |
-| **Stage 6B.1** | **Auth Schema & Test Isolation** | ✅ Completed | Multi-role RBAC schema (`users`, `roles`, `user_roles`), decoupled walk-in `members.user_id`, dynamic discounts, test DB isolation (`champions_club_test`), 34 automated tests passing. |
-| **Stage 6B.2** | **Auth Core & Security** | ⏳ Next | Password hashing (`bcrypt`), JWT token creation/decoding (`pyjwt`), role dependencies. |
-| **Stage 7** | **Frontend Foundation** | ⏳ Queued | React + Vite + Tailwind shell. |
-| **Stage 8** | **Frontend Pages** | ⏳ Queued | Dashboard, Members, Courts, and Bookings UI. |
-| **Stage 9** | **Integration & Demo** | ⏳ Queued | End-to-end integration and presentation rehearsals. |
+| **Milestone A** | **Authentication & RBAC Foundation** | ✅ Completed | Multi-role RBAC schema, 30-min JWTs, token revocation, owner bootstrap, staff invitations, object-level ownership guards, 72 automated tests passing. |
+| **Milestone B** | **Memberships & Member Management** | ⏳ Next | Subscriptions, renewal pricing, walk-in customer support. |
+| **Milestone C** | **Court Booking & Reception** | ⏳ Queued | Interactive calendar, reception workflows, quick booking. |
+| **Milestone D** | **Shop, Shared Inventory & Cafeteria** | ⏳ Queued | POS terminal, counter/online shared stock, kitchen orders. |
+| **Milestone E** | **Payments, Invoicing & Business Clients** | ⏳ Queued | Multi-method payments, corporate accounts, payment allocations. |
+| **Milestone F** | **Employees, Payroll & Leave** | ⏳ Queued | Staff profiles, leave approvals, monthly payslip generation. |
+| **Milestone G** | **Financial & Tax Reporting** | ⏳ Queued | Owner KPI dashboard, tax summaries, cash-up reconciliation. |
+| **Milestone H** | **Public Website & Integration** | ⏳ Queued | Public landing page, online inquiries, final demo polish. |
 
 ## Implemented API Endpoints
 
 Interactive Swagger UI documentation is live at: `http://127.0.0.1:8000/docs`
 
-| Method | Endpoint | Description | Status Code |
-|---|---|---|---|
-| `GET` | `/` | API greeting & documentation links | `200 OK` |
-| `GET` | `/api/v1/health` | Service uptime and health status | `200 OK` |
-| `GET` | `/api/v1/members/plans` | List membership tiers (Gold, Silver, Junior) | `200 OK` |
-| `GET` | `/api/v1/members` | List members with `?search=` and `?plan_id=` filters | `200 OK` |
-| `POST` | `/api/v1/members` | Register a new member (1-year default expiry) | `201 Created` |
-| `GET` | `/api/v1/members/{member_id}` | Fetch member profile with plan details | `200 OK` |
-| `PUT` | `/api/v1/members/{member_id}` | Update member profile or active status | `200 OK` |
-| `GET` | `/api/v1/courts` | List all sports courts with `?sport_type=` filter | `200 OK` |
-| `POST` | `/api/v1/courts` | Register a new court (name, sport type, hourly rate) | `201 Created` |
-| `GET` | `/api/v1/courts/{court_id}` | Fetch court details by UUID | `200 OK` |
-| `PUT` | `/api/v1/courts/{court_id}` | Update court rate, name, or active status | `200 OK` |
-| `GET` | `/api/v1/bookings` | List all bookings with `?date=`, `?court_id=`, `?member_id=`, `?status=` | `200 OK` |
-| `POST` | `/api/v1/bookings` | Create a booking (validates 30-min boundary, 2/day limit, conflict rules) | `201 Created` |
-| `GET` | `/api/v1/bookings/{booking_id}` | Fetch detailed booking with member and court objects | `200 OK` |
-| `POST` | `/api/v1/bookings/{booking_id}/cancel` | Cancel an active booking and immediately release the court slot | `200 OK` |
+| Method | Endpoint | Description | Access | Status Code |
+|---|---|---|---|---|
+| `GET` | `/` | API greeting & documentation links | Public | `200 OK` |
+| `GET` | `/api/v1/health` | Service uptime and health status | Public | `200 OK` |
+| `POST` | `/api/v1/auth/register` | Public member registration (forces `member` role) | Public | `201 Created` |
+| `POST` | `/api/v1/auth/login` | User login (returns 30-min JWT with `token_version`) | Public | `200 OK` |
+| `GET` | `/api/v1/auth/me` | Fetch authenticated profile, roles, and linked member info | Authenticated | `200 OK` |
+| `PUT` | `/api/v1/auth/me` | Self-service contact update (`full_name`, `phone`) | Authenticated | `200 OK` |
+| `POST` | `/api/v1/auth/logout` | Revoke all active session tokens immediately | Authenticated | `200 OK` |
+| `POST` | `/api/v1/auth/staff/invite` | Owner issues single-use 48h invitation token | `owner` only | `200 OK` |
+| `POST` | `/api/v1/auth/staff/accept` | Invitee sets password and creates staff account | Token-gated | `201 Created` |
+| `GET` | `/api/v1/members/plans` | List membership tiers (Gold, Silver, Junior) | Public | `200 OK` |
+| `GET` | `/api/v1/members` | List members with `?search=` and `?plan_id=` filters | `owner`, `receptionist` | `200 OK` |
+| `POST` | `/api/v1/members` | Register a new member profile (walk-in or staff-assisted) | `owner`, `receptionist` | `201 Created` |
+| `GET` | `/api/v1/members/{member_id}` | Fetch member profile with plan details (Object-level ownership) | Staff or Member owner | `200 OK` |
+| `PUT` | `/api/v1/members/{member_id}` | Update member profile or active status | `owner`, `receptionist` | `200 OK` |
+| `GET` | `/api/v1/courts` | List all sports courts with `?sport_type=` filter | Public | `200 OK` |
+| `POST` | `/api/v1/courts` | Register a new physical facility | `owner` only | `201 Created` |
+| `GET` | `/api/v1/courts/{court_id}` | Fetch court details by UUID | Public | `200 OK` |
+| `PUT` | `/api/v1/courts/{court_id}` | Update court rate, name, or active status | `owner`, `receptionist` | `200 OK` |
+| `GET` | `/api/v1/bookings` | List bookings (Members see only own; Staff see all) | Authenticated | `200 OK` |
+| `POST` | `/api/v1/bookings` | Create court booking (Members can only book for themselves) | Authenticated | `201 Created` |
+| `GET` | `/api/v1/bookings/{booking_id}` | Fetch booking by ID (Object-level ownership) | Staff or Booking owner | `200 OK` |
+| `POST` | `/api/v1/bookings/{booking_id}/cancel` | Cancel booking & release court (Object-level ownership) | Staff or Booking owner | `200 OK` |
 
 ## Tech stack
 

@@ -14,6 +14,11 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    # JWT Authentication & Security
+    SECRET_KEY: str = "temporary-hackathon-demo-secret-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # Default access token lifetime: 30 minutes
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
