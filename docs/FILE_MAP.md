@@ -53,6 +53,7 @@ PostgreSQL Database              ◄── [Single Source of Truth (UUIDs, ACID)
 | `docs/FINANCIAL_REPORTING_DEFINITIONS.md` | Mathematical and accounting definitions for accrual revenue, cash collections, payment allocations, refunds, and operating surplus. | None | Developers & Judges | Documentation | "Defines exact financial formulas distinguishing billed invoices, liquid customer collections, and payroll operating expenses." |
 | `docs/TAX_REPORTING_WORKFLOW.md` | Statutory output tax architecture detailing deduplication between retail commerce orders and direct non-order invoices. | None | Developers & Judges | Documentation | "Explains the dual-stream tax engine preventing double counting of output GST when invoices reference point-of-sale orders." |
 | `docs/OWNER_DASHBOARD_METRICS.md` | Executive catalog of dashboard KPI cards, formulas, business interpretations, and RBAC visibility rules. | None | Developers & Judges | Documentation | "Provides a judge-ready catalog of real-time KPIs covering finance, memberships, court utilization, retail inventory, and HR payroll." |
+| `docs/MILESTONE_H_API_CONTRACT.md` | Comprehensive backend API integration audit cataloging all 126 endpoints, authentication workflows, RBAC matrix, and screen mappings. | None | Frontend Developers & Judges | Documentation | "Authoritative frontend integration contract detailing all 126 endpoints, request/response models, confirmation dialogs, and client validation rules." |
 
 ### Backend Foundation
 
