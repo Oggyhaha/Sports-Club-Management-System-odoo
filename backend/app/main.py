@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.modules.members.routes import router as members_router
+from app.modules.courts.routes import router as courts_router
+from app.modules.bookings.routes import router as bookings_router
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -24,6 +26,8 @@ app.add_middleware(
 
 # Register modular routers under /api/v1
 app.include_router(members_router, prefix=settings.API_V1_PREFIX)
+app.include_router(courts_router, prefix=settings.API_V1_PREFIX)
+app.include_router(bookings_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/", tags=["Root"])

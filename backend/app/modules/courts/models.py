@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, DateTime, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class Court(Base):
     """
     Represents sports courts (Tennis courts, Cricket nets, etc.).
-    Maintains sport type, standard hourly rates, and availability status.
+    Maintains sport type, standard member rate, non-member walk-in rate, and status.
     """
 
     __tablename__ = "courts"
@@ -40,6 +40,10 @@ class Court(Base):
         Numeric(10, 2),
         nullable=False,
         default=Decimal("40.00"),
+    )
+    walk_in_rate: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,

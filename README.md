@@ -22,8 +22,10 @@ This is an MVP. Shop inventory, cafeteria orders, online enquiries, staff manage
 | **Stage 2** | **PostgreSQL Connection** | ✅ Completed | PostgreSQL 18 connection, connection pooling, `get_db` session dependency. |
 | **Stage 3** | **Schema & Migrations** | ✅ Completed | 4 tables (`membership_plans`, `members`, `courts`, `bookings`) with UUID primary keys, Alembic migration applied, initial seed data populated. |
 | **Stage 4** | **Member Backend** | ✅ Completed | Pydantic schemas, service layer, REST endpoints (`/api/v1/members`), 17 automated tests passing. |
-| **Stage 5** | **Court Backend** | ⏳ Next | Court models, schemas, service, and endpoints. |
-| **Stage 6** | **Booking Engine** | ⏳ Queued | 60-min slots, 30-min boundaries, 2-per-day limit, and conflict checks. |
+| **Stage 5** | **Court Backend** | ✅ Completed | Pydantic schemas, service layer, REST endpoints (`/api/v1/courts`), 24 automated tests passing. |
+| **Stage 6** | **Booking Engine** | ✅ Completed | 60-min sessions, 30-min boundaries, 2/day quota, overlap conflict prevention, tier discounts, 31 automated tests passing. |
+| **Stage 6B.1** | **Auth Schema & Test Isolation** | ✅ Completed | Multi-role RBAC schema (`users`, `roles`, `user_roles`), decoupled walk-in `members.user_id`, dynamic discounts, test DB isolation (`champions_club_test`), 34 automated tests passing. |
+| **Stage 6B.2** | **Auth Core & Security** | ⏳ Next | Password hashing (`bcrypt`), JWT token creation/decoding (`pyjwt`), role dependencies. |
 | **Stage 7** | **Frontend Foundation** | ⏳ Queued | React + Vite + Tailwind shell. |
 | **Stage 8** | **Frontend Pages** | ⏳ Queued | Dashboard, Members, Courts, and Bookings UI. |
 | **Stage 9** | **Integration & Demo** | ⏳ Queued | End-to-end integration and presentation rehearsals. |
@@ -41,6 +43,14 @@ Interactive Swagger UI documentation is live at: `http://127.0.0.1:8000/docs`
 | `POST` | `/api/v1/members` | Register a new member (1-year default expiry) | `201 Created` |
 | `GET` | `/api/v1/members/{member_id}` | Fetch member profile with plan details | `200 OK` |
 | `PUT` | `/api/v1/members/{member_id}` | Update member profile or active status | `200 OK` |
+| `GET` | `/api/v1/courts` | List all sports courts with `?sport_type=` filter | `200 OK` |
+| `POST` | `/api/v1/courts` | Register a new court (name, sport type, hourly rate) | `201 Created` |
+| `GET` | `/api/v1/courts/{court_id}` | Fetch court details by UUID | `200 OK` |
+| `PUT` | `/api/v1/courts/{court_id}` | Update court rate, name, or active status | `200 OK` |
+| `GET` | `/api/v1/bookings` | List all bookings with `?date=`, `?court_id=`, `?member_id=`, `?status=` | `200 OK` |
+| `POST` | `/api/v1/bookings` | Create a booking (validates 30-min boundary, 2/day limit, conflict rules) | `201 Created` |
+| `GET` | `/api/v1/bookings/{booking_id}` | Fetch detailed booking with member and court objects | `200 OK` |
+| `POST` | `/api/v1/bookings/{booking_id}/cancel` | Cancel an active booking and immediately release the court slot | `200 OK` |
 
 ## Tech stack
 

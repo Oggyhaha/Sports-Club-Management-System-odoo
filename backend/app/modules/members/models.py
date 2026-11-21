@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,12 +11,13 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.modules.bookings.models import Booking
+    from app.modules.auth.models import User
 
 
 class MembershipPlan(Base):
     """
     Represents club membership tiers (Gold, Silver, Junior).
-    Configures monthly fees and court booking discount percentages.
+    Configures fees, discounts, and duration dynamically.
     """
 
     __tablename__ = "membership_plans"
@@ -42,6 +43,22 @@ class MembershipPlan(Base):
         nullable=False,
         default=Decimal("0.00"),
     )
+    shop_discount_percent: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+        server_default="0.00",
+    )
+    bar_discount_percent: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+        server_default="0.00",
+    )
+    duration_days: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
     description: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
@@ -61,7 +78,8 @@ class MembershipPlan(Base):
 class Member(Base):
     """
     Represents registered sports club members.
-    Tied to a membership plan with start and expiry dates.
+    Can be linked to an authenticated User account (user_id),
+    or user_id can be NULL for front-desk walk-in patrons.
     """
 
     __tablename__ = "members"
@@ -70,6 +88,13 @@ class Member(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        unique=True,
+        nullable=True,
+        index=True,
     )
     full_name: Mapped[str] = mapped_column(
         String(100),
@@ -112,6 +137,10 @@ class Member(Base):
     )
 
     # Relationships
+    user: Mapped[Optional["User"]] = relationship(
+        "User",
+        back_populates="member_profile",
+    )
     plan: Mapped["MembershipPlan"] = relationship(
         back_populates="members",
     )
