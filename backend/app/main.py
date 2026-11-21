@@ -22,6 +22,7 @@ from app.modules.employees.routes import (
     leaves_router,
     payroll_router,
 )
+from app.modules.reports.routes import reports_router
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -60,6 +61,7 @@ app.include_router(employees_router, prefix=settings.API_V1_PREFIX)
 app.include_router(attendance_router, prefix=settings.API_V1_PREFIX)
 app.include_router(leaves_router, prefix=settings.API_V1_PREFIX)
 app.include_router(payroll_router, prefix=settings.API_V1_PREFIX)
+app.include_router(reports_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/", tags=["Root"])
