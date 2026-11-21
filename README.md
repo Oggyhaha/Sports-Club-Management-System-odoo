@@ -13,6 +13,35 @@ Replace scattered spreadsheets and messages with one simple application for:
 
 This is an MVP. Shop inventory, cafeteria orders, online enquiries, staff management, advanced analytics, notifications, and payment-gateway integration are future enhancements unless time remains.
 
+## Current Build Progress
+
+| Stage | Milestone | Status | Details |
+|---|---|---|---|
+| **Stage 0** | **Inspection** | ✅ Completed | Clean tree, gitignore configured, locked stack verified. |
+| **Stage 1** | **FastAPI Skeleton** | ✅ Completed | App factory, CORS middleware, `/api/v1/health` and root routes. |
+| **Stage 2** | **PostgreSQL Connection** | ✅ Completed | PostgreSQL 18 connection, connection pooling, `get_db` session dependency. |
+| **Stage 3** | **Schema & Migrations** | ✅ Completed | 4 tables (`membership_plans`, `members`, `courts`, `bookings`) with UUID primary keys, Alembic migration applied, initial seed data populated. |
+| **Stage 4** | **Member Backend** | ✅ Completed | Pydantic schemas, service layer, REST endpoints (`/api/v1/members`), 17 automated tests passing. |
+| **Stage 5** | **Court Backend** | ⏳ Next | Court models, schemas, service, and endpoints. |
+| **Stage 6** | **Booking Engine** | ⏳ Queued | 60-min slots, 30-min boundaries, 2-per-day limit, and conflict checks. |
+| **Stage 7** | **Frontend Foundation** | ⏳ Queued | React + Vite + Tailwind shell. |
+| **Stage 8** | **Frontend Pages** | ⏳ Queued | Dashboard, Members, Courts, and Bookings UI. |
+| **Stage 9** | **Integration & Demo** | ⏳ Queued | End-to-end integration and presentation rehearsals. |
+
+## Implemented API Endpoints
+
+Interactive Swagger UI documentation is live at: `http://127.0.0.1:8000/docs`
+
+| Method | Endpoint | Description | Status Code |
+|---|---|---|---|
+| `GET` | `/` | API greeting & documentation links | `200 OK` |
+| `GET` | `/api/v1/health` | Service uptime and health status | `200 OK` |
+| `GET` | `/api/v1/members/plans` | List membership tiers (Gold, Silver, Junior) | `200 OK` |
+| `GET` | `/api/v1/members` | List members with `?search=` and `?plan_id=` filters | `200 OK` |
+| `POST` | `/api/v1/members` | Register a new member (1-year default expiry) | `201 Created` |
+| `GET` | `/api/v1/members/{member_id}` | Fetch member profile with plan details | `200 OK` |
+| `PUT` | `/api/v1/members/{member_id}` | Update member profile or active status | `200 OK` |
+
 ## Tech stack
 
 | Area | Technology |
