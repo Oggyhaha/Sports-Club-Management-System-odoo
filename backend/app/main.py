@@ -14,6 +14,14 @@ from app.modules.finance.routes import (
     receipts_router,
     allocations_router,
 )
+from app.modules.employees.routes import (
+    departments_router,
+    designations_router,
+    employees_router,
+    attendance_router,
+    leaves_router,
+    payroll_router,
+)
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -46,6 +54,12 @@ app.include_router(invoices_router, prefix=settings.API_V1_PREFIX)
 app.include_router(payments_router, prefix=settings.API_V1_PREFIX)
 app.include_router(receipts_router, prefix=settings.API_V1_PREFIX)
 app.include_router(allocations_router, prefix=settings.API_V1_PREFIX)
+app.include_router(departments_router, prefix=settings.API_V1_PREFIX)
+app.include_router(designations_router, prefix=settings.API_V1_PREFIX)
+app.include_router(employees_router, prefix=settings.API_V1_PREFIX)
+app.include_router(attendance_router, prefix=settings.API_V1_PREFIX)
+app.include_router(leaves_router, prefix=settings.API_V1_PREFIX)
+app.include_router(payroll_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/", tags=["Root"])

@@ -48,6 +48,20 @@ def clean_test_artifacts():
     yield
     db = TestingSessionLocal()
     try:
+        db.execute(text("DELETE FROM payroll_disbursements"))
+        db.execute(text("DELETE FROM payslips"))
+        db.execute(text("DELETE FROM payroll_entry_components"))
+        db.execute(text("DELETE FROM payroll_entries"))
+        db.execute(text("DELETE FROM payroll_runs"))
+        db.execute(text("DELETE FROM payroll_periods"))
+        db.execute(text("DELETE FROM salary_assignments"))
+        db.execute(text("DELETE FROM salary_structure_components"))
+        db.execute(text("DELETE FROM salary_structures"))
+        db.execute(text("DELETE FROM leave_requests"))
+        db.execute(text("DELETE FROM attendances"))
+        db.execute(text("DELETE FROM employees"))
+        db.execute(text("DELETE FROM designations"))
+        db.execute(text("DELETE FROM departments"))
         db.execute(text("DELETE FROM payment_allocation_reversals"))
         db.execute(text("DELETE FROM payment_allocations"))
         db.execute(text("DELETE FROM payment_refunds"))
@@ -278,3 +292,50 @@ def business_client_user():
 def business_client_headers(business_client_user):
     token = create_access_token(user_id=business_client_user.id, token_version=business_client_user.token_version)
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def employee_user():
+    from app.models import Employee
+    import datetime
+    db = TestingSessionLocal()
+    try:
+        user = User(
+            email=f"emp_{uuid.uuid4().hex[:6]}@example.com",
+            hashed_password=hash_password("EmpPass123!"),
+            full_name="Test Staff Employee",
+            is_active=True,
+            token_version=1,
+        )
+        emp_role = db.query(Role).filter(Role.name == RoleEnum.RECEPTIONIST.value).first()
+        if not emp_role:
+            emp_role = Role(name=RoleEnum.RECEPTIONIST.value, description="Receptionist")
+            db.add(emp_role)
+            db.flush()
+        user.roles.append(emp_role)
+        db.add(user)
+        db.flush()
+
+        emp = Employee(
+            user_id=user.id,
+            employee_code=f"EMP-{uuid.uuid4().hex[:6].upper()}",
+            first_name="Test",
+            last_name="Employee",
+            work_email=user.email,
+            joining_date=datetime.date.today(),
+            employment_status="active",
+            employment_type="full_time",
+        )
+        db.add(emp)
+        db.commit()
+        db.refresh(user)
+        return user
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def employee_headers(employee_user):
+    token = create_access_token(user_id=employee_user.id, token_version=employee_user.token_version)
+    return {"Authorization": f"Bearer {token}"}
+

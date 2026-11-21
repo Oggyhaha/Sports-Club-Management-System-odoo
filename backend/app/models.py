@@ -24,6 +24,22 @@ from app.modules.finance.models import (
     PaymentReceipt,
     PaymentRefund,
 )
+from app.modules.employees.models import (
+    Department,
+    Designation,
+    Employee,
+    Attendance,
+    LeaveRequest,
+    SalaryStructure,
+    SalaryStructureComponent,
+    SalaryAssignment,
+    PayrollPeriod,
+    PayrollRun,
+    PayrollEntry,
+    PayrollEntryComponent,
+    Payslip,
+    PayrollDisbursement,
+)
 
 __all__ = [
     "Base",
@@ -53,4 +69,18 @@ __all__ = [
     "PaymentAllocationReversal",
     "PaymentReceipt",
     "PaymentRefund",
+    "Department",
+    "Designation",
+    "Employee",
+    "Attendance",
+    "LeaveRequest",
+    "SalaryStructure",
+    "SalaryStructureComponent",
+    "SalaryAssignment",
+    "PayrollPeriod",
+    "PayrollRun",
+    "PayrollEntry",
+    "PayrollEntryComponent",
+    "Payslip",
+    "PayrollDisbursement",
 ]
