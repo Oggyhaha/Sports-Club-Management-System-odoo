@@ -234,15 +234,12 @@ class Employee(Base):
     )
     attendances: Mapped[List[Attendance]] = relationship(
         back_populates="employee",
-        cascade="all, delete-orphan",
     )
     leave_requests: Mapped[List[LeaveRequest]] = relationship(
         back_populates="employee",
-        cascade="all, delete-orphan",
     )
     salary_assignments: Mapped[List[SalaryAssignment]] = relationship(
         back_populates="employee",
-        cascade="all, delete-orphan",
         order_by="desc(SalaryAssignment.effective_from)",
     )
     payroll_entries: Mapped[List[PayrollEntry]] = relationship(
@@ -267,7 +264,7 @@ class Attendance(Base):
     )
     employee_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("employees.id", ondelete="CASCADE"),
+        ForeignKey("employees.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -342,7 +339,7 @@ class LeaveRequest(Base):
     )
     employee_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("employees.id", ondelete="CASCADE"),
+        ForeignKey("employees.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -511,7 +508,7 @@ class SalaryAssignment(Base):
     )
     employee_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("employees.id", ondelete="CASCADE"),
+        ForeignKey("employees.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )

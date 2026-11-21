@@ -619,3 +619,333 @@ def test_unauthorized_roles_blocked_from_hr(receptionist_headers, shop_staff_hea
     # Business clients blocked
     assert client.get("/api/v1/employees", headers=business_client_headers).status_code == 403
     assert client.get("/api/v1/payroll/runs", headers=business_client_headers).status_code == 403
+
+
+# ==========================================
+# 9. Verification Tests for the 4 Checks
+# ==========================================
+
+def test_check_1_employee_deletion_restricted_by_history(hr_staff_headers, employee_headers):
+    """
+    Check 1: Deleting an employee with historical records is RESTRICTED by foreign key constraints.
+    Workforce lifecycle requires deactivation / soft deletion instead.
+    """
+    from app.models import Employee, Attendance, LeaveRequest
+    from tests.conftest import TestingSessionLocal
+    import sqlalchemy.exc
+
+    # Retrieve employee profile
+    emp_profile = client.get("/api/v1/employees/me", headers=employee_headers).json()
+    emp_id = uuid.UUID(emp_profile["id"])
+
+    # Create an attendance record for this employee
+    client.post("/api/v1/attendance/check-in", json={"notes": "History test"}, headers=employee_headers)
+
+    # 1. Attempt hard deletion directly in database -> must be rejected by PostgreSQL RESTRICT constraint
+    db = TestingSessionLocal()
+    try:
+        emp_db = db.get(Employee, emp_id)
+        db.delete(emp_db)
+        with pytest.raises(sqlalchemy.exc.IntegrityError):
+            db.commit()
+    finally:
+        db.rollback()
+        db.close()
+
+    # 2. Verify soft deletion / deactivation via status update endpoint
+    res_deact = client.patch(
+        f"/api/v1/employees/{emp_id}/status",
+        json={"employment_status": "terminated"},
+        headers=hr_staff_headers,
+    )
+    assert res_deact.status_code == 200
+    assert res_deact.json()["employment_status"] == "terminated"
+
+    # 3. Verify attendance history is intact
+    res_att = client.get("/api/v1/attendance/me", headers=employee_headers)
+    assert res_att.status_code == 200
+    assert len(res_att.json()) >= 1
+
+
+def test_check_2_payroll_partial_vs_full_payment_lifecycle(hr_staff_headers, employee_headers):
+    """
+    Check 2: A partially disbursed payroll entry is NEVER marked paid.
+    The 'paid' status only occurs when outstanding payable reaches zero.
+    """
+    emp_profile = client.get("/api/v1/employees/me", headers=employee_headers).json()
+    emp_id = emp_profile["id"]
+
+    struct = client.post(
+        "/api/v1/payroll/salary-structures",
+        json={"name": f"Check 2 Struct {uuid.uuid4().hex[:6]}", "components": []},
+        headers=hr_staff_headers,
+    ).json()
+
+    client.post(
+        f"/api/v1/payroll/employees/{emp_id}/salary",
+        json={
+            "salary_structure_id": struct["id"],
+            "base_salary": "30000.00",
+            "effective_from": str(date.today() - timedelta(days=20)),
+        },
+        headers=hr_staff_headers,
+    )
+
+    period = client.post(
+        "/api/v1/payroll/periods",
+        json={
+            "period_name": f"Period Check2 {uuid.uuid4().hex[:6]}",
+            "start_date": str(date.today() - timedelta(days=25)),
+            "end_date": str(date.today()),
+        },
+        headers=hr_staff_headers,
+    ).json()
+
+    run = client.post(
+        "/api/v1/payroll/runs",
+        json={"payroll_period_id": period["id"]},
+        headers=hr_staff_headers,
+    ).json()
+    run_id = run["id"]
+    client.post(f"/api/v1/payroll/runs/{run_id}/review", headers=hr_staff_headers)
+    proc_run = client.post(f"/api/v1/payroll/runs/{run_id}/process", headers=hr_staff_headers).json()
+
+    entry = next(e for e in proc_run["entries"] if e["employee_id"] == emp_id)
+    entry_id = entry["id"]
+
+    # Initial state: unpaid
+    assert entry["payment_status"] == "unpaid"
+    assert Decimal(str(entry["amount_disbursed"])) == Decimal("0.00")
+
+    # Step A: Partial disbursement of ₹10,000.00 (₹20,000 remaining)
+    res1 = client.post(
+        f"/api/v1/payroll/entries/{entry_id}/disburse",
+        json={"amount": "10000.00", "disbursement_method": "bank_transfer"},
+        headers=hr_staff_headers,
+    )
+    assert res1.status_code == 201
+
+    run_check1 = client.get(f"/api/v1/payroll/runs/{run_id}", headers=hr_staff_headers).json()
+    entry_check1 = next(e for e in run_check1["entries"] if e["id"] == entry_id)
+    assert entry_check1["payment_status"] == "partially_paid"
+    assert entry_check1["payment_status"] != "paid"
+    assert run_check1["status"] != "paid"
+
+    # Step B: Second partial disbursement of ₹10,000.00 (₹10,000 remaining)
+    res2 = client.post(
+        f"/api/v1/payroll/entries/{entry_id}/disburse",
+        json={"amount": "10000.00", "disbursement_method": "upi"},
+        headers=hr_staff_headers,
+    )
+    assert res2.status_code == 201
+
+    run_check2 = client.get(f"/api/v1/payroll/runs/{run_id}", headers=hr_staff_headers).json()
+    entry_check2 = next(e for e in run_check2["entries"] if e["id"] == entry_id)
+    assert entry_check2["payment_status"] == "partially_paid"
+    assert entry_check2["payment_status"] != "paid"
+
+    # Step C: Final disbursement of remaining ₹10,000.00 (₹0 remaining)
+    res3 = client.post(
+        f"/api/v1/payroll/entries/{entry_id}/disburse",
+        json={"amount": "10000.00", "disbursement_method": "cash"},
+        headers=hr_staff_headers,
+    )
+    assert res3.status_code == 201
+
+    run_check3 = client.get(f"/api/v1/payroll/runs/{run_id}", headers=hr_staff_headers).json()
+    entry_check3 = next(e for e in run_check3["entries"] if e["id"] == entry_id)
+    assert entry_check3["payment_status"] == "paid"
+    assert Decimal(str(entry_check3["amount_disbursed"])) == Decimal("30000.00")
+
+
+def test_check_3_concurrent_payroll_disbursements(hr_staff_headers, employee_headers):
+    """
+    Check 3: Concurrent disbursements against the same payroll entry are row-locked.
+    The final total disbursed must never exceed the net payable.
+    """
+    import concurrent.futures
+
+    emp_profile = client.get("/api/v1/employees/me", headers=employee_headers).json()
+    emp_id = emp_profile["id"]
+
+    struct = client.post(
+        "/api/v1/payroll/salary-structures",
+        json={"name": f"Check 3 Struct {uuid.uuid4().hex[:6]}", "components": []},
+        headers=hr_staff_headers,
+    ).json()
+
+    client.post(
+        f"/api/v1/payroll/employees/{emp_id}/salary",
+        json={
+            "salary_structure_id": struct["id"],
+            "base_salary": "1000.00",
+            "effective_from": str(date.today() - timedelta(days=20)),
+        },
+        headers=hr_staff_headers,
+    )
+
+    period = client.post(
+        "/api/v1/payroll/periods",
+        json={
+            "period_name": f"Period Check3 {uuid.uuid4().hex[:6]}",
+            "start_date": str(date.today() - timedelta(days=25)),
+            "end_date": str(date.today()),
+        },
+        headers=hr_staff_headers,
+    ).json()
+
+    run = client.post(
+        "/api/v1/payroll/runs",
+        json={"payroll_period_id": period["id"]},
+        headers=hr_staff_headers,
+    ).json()
+    run_id = run["id"]
+    client.post(f"/api/v1/payroll/runs/{run_id}/review", headers=hr_staff_headers)
+    proc_run = client.post(f"/api/v1/payroll/runs/{run_id}/process", headers=hr_staff_headers).json()
+
+    entry = next(e for e in proc_run["entries"] if e["employee_id"] == emp_id)
+    entry_id = entry["id"]
+
+    # Two concurrent threads attempt to disburse ₹600.00 each against net_payable = ₹1,000.00
+    # Exactly one must succeed (leaving ₹400 balance), and the other must be rejected (600 > 400).
+    def disburse_worker():
+        c = TestClient(app)
+        return c.post(
+            f"/api/v1/payroll/entries/{entry_id}/disburse",
+            json={"amount": "600.00", "disbursement_method": "bank_transfer"},
+            headers=hr_staff_headers,
+        )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        f1 = executor.submit(disburse_worker)
+        f2 = executor.submit(disburse_worker)
+        res1 = f1.result()
+        res2 = f2.result()
+
+    statuses = [res1.status_code, res2.status_code]
+    assert 201 in statuses
+    assert 400 in statuses
+
+    # Verify total disbursed in database is exactly ₹600.00, not ₹1,200.00
+    updated_run = client.get(f"/api/v1/payroll/runs/{run_id}", headers=hr_staff_headers).json()
+    updated_entry = next(e for e in updated_run["entries"] if e["id"] == entry_id)
+    assert Decimal(str(updated_entry["amount_disbursed"])) == Decimal("600.00")
+    assert Decimal(str(updated_entry["amount_disbursed"])) <= Decimal(str(updated_entry["net_payable"]))
+
+
+def test_check_4_historical_payroll_immutability(hr_staff_headers, employee_headers):
+    """
+    Check 4: Modifying salary structures or employee details cannot alter finalized
+    payroll entries, payslips or existing disbursement records.
+    """
+    # 1. Create a dedicated employee
+    emp_res = client.post(
+        "/api/v1/employees",
+        json={
+            "employee_code": f"EMP-HIST-{uuid.uuid4().hex[:6].upper()}",
+            "first_name": "OriginalFirst",
+            "last_name": "OriginalLast",
+            "work_email": f"orig_{uuid.uuid4().hex[:6]}@championsclub.com",
+            "joining_date": str(date.today()),
+        },
+        headers=hr_staff_headers,
+    )
+    emp_data = emp_res.json()
+    emp_id = emp_data["id"]
+
+    # 2. Create salary structure
+    struct = client.post(
+        "/api/v1/payroll/salary-structures",
+        json={
+            "name": f"Hist Struct {uuid.uuid4().hex[:6]}",
+            "components": [
+                {"component_name": "Special Allowance", "component_type": "earning", "default_amount": "5000.00"},
+            ],
+        },
+        headers=hr_staff_headers,
+    ).json()
+
+    # Assign base salary of ₹20,000.00 (Total gross = 25000.00)
+    client.post(
+        f"/api/v1/payroll/employees/{emp_id}/salary",
+        json={
+            "salary_structure_id": struct["id"],
+            "base_salary": "20000.00",
+            "effective_from": str(date.today() - timedelta(days=20)),
+        },
+        headers=hr_staff_headers,
+    )
+
+    # 3. Create period and finalize payroll run
+    period = client.post(
+        "/api/v1/payroll/periods",
+        json={
+            "period_name": f"Hist Cycle {uuid.uuid4().hex[:6]}",
+            "start_date": str(date.today() - timedelta(days=25)),
+            "end_date": str(date.today()),
+        },
+        headers=hr_staff_headers,
+    ).json()
+
+    run = client.post(
+        "/api/v1/payroll/runs",
+        json={"payroll_period_id": period["id"]},
+        headers=hr_staff_headers,
+    ).json()
+    run_id = run["id"]
+    client.post(f"/api/v1/payroll/runs/{run_id}/review", headers=hr_staff_headers)
+    proc_run = client.post(f"/api/v1/payroll/runs/{run_id}/process", headers=hr_staff_headers).json()
+
+    entry = next(e for e in proc_run["entries"] if e["employee_id"] == emp_id)
+    entry_id = entry["id"]
+
+    # Record partial disbursement
+    client.post(
+        f"/api/v1/payroll/entries/{entry_id}/disburse",
+        json={"amount": "10000.00", "disbursement_method": "bank_transfer"},
+        headers=hr_staff_headers,
+    )
+
+    # 4. MUTATE EMPLOYEE DETAILS
+    client.put(
+        f"/api/v1/employees/{emp_id}",
+        json={"first_name": "MUTATED_FIRST", "last_name": "MUTATED_LAST"},
+        headers=hr_staff_headers,
+    )
+    client.patch(
+        f"/api/v1/employees/{emp_id}/status",
+        json={"employment_status": "terminated"},
+        headers=hr_staff_headers,
+    )
+
+    # 5. REVISE EMPLOYEE SALARY TO ₹80,000.00
+    client.post(
+        f"/api/v1/payroll/employees/{emp_id}/salary",
+        json={
+            "salary_structure_id": struct["id"],
+            "base_salary": "80000.00",
+            "effective_from": str(date.today()),
+        },
+        headers=hr_staff_headers,
+    )
+
+    # 6. VERIFY FINALIZED HISTORICAL RECORDS REMAIN COMPLETELY UNCHANGED
+    verified_run = client.get(f"/api/v1/payroll/runs/{run_id}", headers=hr_staff_headers).json()
+    hist_entry = next(e for e in verified_run["entries"] if e["id"] == entry_id)
+
+    # Snapshot integrity
+    assert hist_entry["employee_name_snapshot"] == "OriginalFirst OriginalLast"
+    assert hist_entry["employee_name_snapshot"] != "MUTATED_FIRST MUTATED_LAST"
+
+    # Financial breakdown integrity
+    assert Decimal(str(hist_entry["gross_earnings"])) == Decimal("25000.00")
+    assert Decimal(str(hist_entry["net_payable"])) == Decimal("25000.00")
+    assert Decimal(str(hist_entry["amount_disbursed"])) == Decimal("10000.00")
+
+    # Component snapshot integrity
+    assert len(hist_entry["components"]) == 2
+    basic_comp = next(c for c in hist_entry["components"] if c["component_name"] == "Basic Pay")
+    allow_comp = next(c for c in hist_entry["components"] if c["component_name"] == "Special Allowance")
+    assert Decimal(str(basic_comp["amount"])) == Decimal("20000.00")
+    assert Decimal(str(allow_comp["amount"])) == Decimal("5000.00")
+

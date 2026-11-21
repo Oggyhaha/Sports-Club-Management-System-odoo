@@ -361,7 +361,7 @@ def list_inventory_movements(db: Session, product_id: UUID) -> List[InventoryMov
     stmt = (
         select(InventoryMovement)
         .where(InventoryMovement.product_id == product_id)
-        .order_by(InventoryMovement.created_at.desc())
+        .order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc())
     )
     return list(db.scalars(stmt).all())
 
