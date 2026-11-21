@@ -18,7 +18,9 @@ export const ShopPosPage = () => {
   const [cart, setCart] = useState([]);
   const [members, setMembers] = useState([]);
   const [selectedMemberId, setSelectedMemberId] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' | 'card' | 'upi'
+  const [customerType, setCustomerType] = useState('walk_in'); // 'walk_in' | 'member'
+  const [walkInName, setWalkInName] = useState('');
+  const [walkInPhone, setWalkInPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(null);
 
@@ -52,8 +54,9 @@ export const ShopPosPage = () => {
 
   const addToCart = (product) => {
     const existing = cart.find((item) => item.product.id === product.id);
+    const availableStock = product.current_stock ?? 0;
     if (existing) {
-      if (existing.quantity >= product.current_stock) {
+      if (product.inventory_tracked && existing.quantity >= availableStock) {
         showToast?.('Cannot exceed available inventory stock.', 'error');
         return;
       }
@@ -63,7 +66,7 @@ export const ShopPosPage = () => {
         )
       );
     } else {
-      if (product.current_stock < 1) {
+      if (product.inventory_tracked && availableStock < 1) {
         showToast?.('Item is currently out of stock.', 'error');
         return;
       }
@@ -77,7 +80,8 @@ export const ShopPosPage = () => {
         .map((item) => {
           if (item.product.id === productId) {
             const nextQty = item.quantity + delta;
-            if (nextQty > item.product.current_stock) {
+            const availableStock = item.product.current_stock ?? 0;
+            if (item.product.inventory_tracked && nextQty > availableStock) {
               showToast?.('Cannot exceed available inventory stock.', 'error');
               return item;
             }
@@ -95,42 +99,69 @@ export const ShopPosPage = () => {
 
   // Calculations
   const selectedMember = members.find((m) => m.id === selectedMemberId);
+  const memberDiscountPct = customerType === 'member' && selectedMember?.plan?.shop_discount_percent
+    ? Number(selectedMember.plan.shop_discount_percent)
+    : 0;
+
   const subtotal = cart.reduce(
-    (acc, item) => acc + Number(item.product.price) * item.quantity,
+    (acc, item) => acc + Number(item.product.unit_price ?? item.product.price ?? 0) * item.quantity,
     0
   );
-  const taxTotal = cart.reduce(
-    (acc, item) =>
-      acc +
-      Number(item.product.price) *
-        item.quantity *
-        ((Number(item.product.tax_rate) || 0) / 100),
-    0
-  );
-  const total = subtotal + taxTotal;
+
+  const discountAmount = cart.reduce((acc, item) => {
+    if (item.product.discount_eligible && memberDiscountPct > 0) {
+      const price = Number(item.product.unit_price ?? item.product.price ?? 0);
+      return acc + (price * item.quantity * (memberDiscountPct / 100));
+    }
+    return acc;
+  }, 0);
+
+  const totalEstimate = Math.max(0, subtotal - discountAmount);
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    if (customerType === 'member' && !selectedMemberId) {
+      showToast?.('Please select a club member or switch to walk-in.', 'error');
+      return;
+    }
     setSubmitting(true);
 
     try {
+      // Backend OrderCreate schema
       const payload = {
-        order_type: 'shop',
+        customer_type: customerType,
         items: cart.map((i) => ({
           product_id: i.product.id,
           quantity: i.quantity,
         })),
       };
-      if (selectedMemberId) payload.member_id = selectedMemberId;
+
+      if (customerType === 'member') {
+        payload.member_id = selectedMemberId;
+      } else {
+        if (walkInName) payload.walk_in_name = walkInName;
+        if (walkInPhone) payload.walk_in_phone = walkInPhone;
+      }
 
       const orderRes = await shopService.createOrder(payload);
+      // Auto-confirm POS order
+      if (orderRes?.id) {
+        try {
+          await shopService.confirmOrder(orderRes.id);
+        } catch (e) {
+          // ignore if already confirmed
+        }
+      }
+
       setCheckoutSuccess(orderRes);
       setCart([]);
       setSelectedMemberId('');
-      showToast?.('POS Order processed successfully!', 'success');
+      setWalkInName('');
+      setWalkInPhone('');
+      showToast?.('POS Order processed and confirmed successfully!', 'success');
       loadCatalog();
     } catch (err) {
-      showToast?.(err.response?.data?.detail || 'Failed to submit POS order.', 'error');
+      showToast?.(err.response?.data?.detail || err.message || 'Failed to submit POS order.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -179,163 +210,211 @@ export const ShopPosPage = () => {
 
           {/* Product Grid */}
           {loading ? (
-            <div className="p-12 text-center text-slate-400 text-xs">Loading merchandise...</div>
+            <div className="p-12 text-center text-slate-400 text-xs">Loading shop merchandise...</div>
           ) : filteredProducts.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-xs bg-white rounded-xl border border-slate-200">
-              No products found in this category.
-            </div>
+            <Card className="text-center py-12 text-slate-500 text-xs">
+              <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p>No products available in this category.</p>
+            </Card>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
               {filteredProducts.map((p) => {
-                const isOutOfStock = p.current_stock <= 0;
+                const stock = p.current_stock ?? 0;
+                const isOutOfStock = p.inventory_tracked && stock < 1;
+
                 return (
-                  <div
+                  <button
                     key={p.id}
-                    className={`bg-white rounded-xl border p-4 flex flex-col justify-between transition-all ${
-                      isOutOfStock ? 'opacity-60 border-slate-200' : 'border-slate-200 shadow-2xs hover:shadow-xs'
+                    type="button"
+                    disabled={isOutOfStock}
+                    onClick={() => addToCart(p)}
+                    className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer bg-white ${
+                      isOutOfStock
+                        ? 'opacity-50 border-slate-200 cursor-not-allowed'
+                        : 'border-slate-200 hover:border-sky-500 hover:shadow-2xs active:scale-[0.98]'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-1 text-2xs">
-                        <span className="font-mono text-slate-400">{p.sku}</span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded font-mono font-bold ${
-                            isOutOfStock
-                              ? 'bg-rose-100 text-rose-700'
-                              : p.current_stock <= p.reorder_threshold
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-emerald-50 text-emerald-700'
-                          }`}
-                        >
-                          {isOutOfStock ? 'OUT' : `${p.current_stock} in stock`}
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-slate-900 text-xs mt-2 line-clamp-2">
-                        {p.name}
-                      </h4>
-                      <p className="text-sm font-mono font-bold text-slate-900 mt-2">
-                        {formatCurrency(p.price)}
-                      </p>
+                      <span className="text-3xs font-mono font-semibold text-slate-400">{p.sku || 'ITEM'}</span>
+                      <h4 className="font-bold text-slate-900 text-xs line-clamp-1 mt-0.5">{p.name}</h4>
+                      <p className="text-3xs text-slate-400 mt-0.5">{p.category?.name || 'Shop'}</p>
                     </div>
 
-                    <div className="mt-4 pt-2 border-t border-slate-100">
-                      <Button
-                        variant={isOutOfStock ? 'outline' : 'primary'}
-                        size="sm"
-                        disabled={isOutOfStock}
-                        onClick={() => addToCart(p)}
-                        className="w-full text-xs"
-                      >
-                        {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-                      </Button>
+                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-baseline justify-between w-full">
+                      <span className="font-bold text-slate-900 text-sm">
+                        {formatCurrency(p.unit_price ?? p.price ?? 0)}
+                      </span>
+                      <span className={`text-3xs font-mono font-semibold px-1.5 py-0.2 rounded ${
+                        isOutOfStock ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        {p.inventory_tracked ? `${stock} left` : 'In Stock'}
+                      </span>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Right 1 Col: POS Cart & Checkout Drawer */}
-        <div>
-          <Card title="Current POS Ticket" subtitle="Scan & itemized checkout">
-            {/* Member Lookup for Discount */}
-            <div className="mb-4 pb-3 border-b border-slate-100 text-xs">
-              <label className="block font-medium text-slate-700 mb-1 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-slate-500" /> Apply Member Profile
-              </label>
-              <select
-                value={selectedMemberId}
-                onChange={(e) => setSelectedMemberId(e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900 bg-white"
-              >
-                <option value="">Walk-in Retail Customer</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.full_name} ({m.plan_name || 'Member'})
-                  </option>
-                ))}
-              </select>
+        {/* Right Col: POS Terminal Register / Cart */}
+        <div className="space-y-4">
+          <Card className="sticky top-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-sky-600" /> Current Sale Ticket
+              </h3>
+              {cart.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCart([])}
+                  className="text-3xs text-rose-600 hover:underline cursor-pointer"
+                >
+                  Clear Cart
+                </button>
+              )}
             </div>
 
-            {/* Cart Items List */}
-            {cart.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center">
-                <ShoppingBag className="w-8 h-8 text-slate-300 mb-2" />
-                Ticket is empty. Click items on the left to add.
+            {/* Customer Type Selector */}
+            <div className="mt-3.5 space-y-2 text-xs">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setCustomerType('walk_in')}
+                  className={`py-1 rounded font-medium text-center cursor-pointer ${
+                    customerType === 'walk_in' ? 'bg-white shadow-2xs text-slate-900 font-bold' : 'text-slate-600'
+                  }`}
+                >
+                  Walk-In Guest
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerType('member')}
+                  className={`py-1 rounded font-medium text-center cursor-pointer ${
+                    customerType === 'member' ? 'bg-white shadow-2xs text-slate-900 font-bold' : 'text-slate-600'
+                  }`}
+                >
+                  Club Member
+                </button>
               </div>
-            ) : (
-              <div className="space-y-3 max-h-64 overflow-y-auto divide-y divide-slate-100 pr-1">
-                {cart.map((item) => (
-                  <div key={item.product.id} className="pt-2 flex items-center justify-between text-xs">
-                    <div className="flex-1 pr-2">
-                      <p className="font-semibold text-slate-900 line-clamp-1">
-                        {item.product.name}
-                      </p>
-                      <p className="text-2xs text-slate-500 font-mono">
-                        {formatCurrency(item.product.price)} each
+
+              {customerType === 'member' ? (
+                <div>
+                  <label className="text-3xs font-semibold text-slate-500 block mb-1">Select Member Account</label>
+                  <select
+                    value={selectedMemberId}
+                    onChange={(e) => setSelectedMemberId(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900 bg-white"
+                  >
+                    <option value="">-- Choose Member --</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.full_name} ({m.plan?.name || 'Member'} • {m.plan?.shop_discount_percent || 0}% Disc)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={walkInName}
+                    onChange={(e) => setWalkInName(e.target.value)}
+                    placeholder="Guest Name (Optional)"
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                  <input
+                    type="tel"
+                    value={walkInPhone}
+                    onChange={(e) => setWalkInPhone(e.target.value)}
+                    placeholder="Phone (Optional)"
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Cart Items */}
+            <div className="mt-4 max-h-[260px] overflow-y-auto divide-y divide-slate-100">
+              {cart.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 text-xs italic">
+                  Ticket is empty. Tap products to add items.
+                </div>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.product.id} className="py-2.5 flex items-center justify-between text-xs">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="font-semibold text-slate-900 truncate">{item.product.name}</p>
+                      <p className="text-3xs text-slate-400 font-mono">
+                        {formatCurrency(item.product.unit_price ?? item.product.price ?? 0)} each
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="font-mono font-bold text-slate-900 w-4 text-center">
-                        {item.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center border border-slate-200 rounded-md bg-slate-50">
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.product.id, -1)}
+                          className="px-2 py-0.5 text-slate-600 hover:text-slate-900"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="px-2 font-mono font-bold text-slate-900 text-xs">{item.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.product.id, 1)}
+                          className="px-2 py-0.5 text-slate-600 hover:text-slate-900"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => removeFromCart(item.product.id)}
-                        className="text-slate-400 hover:text-rose-600 p-1 ml-1"
+                        className="text-slate-400 hover:text-rose-600"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
 
-            {/* Ticket Totals */}
-            <div className="mt-4 pt-3 border-t border-slate-200 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between text-slate-600">
-                <span>Subtotal:</span>
-                <span className="font-mono">{formatCurrency(subtotal)}</span>
+            {/* Order Totals Summary */}
+            <div className="mt-4 pt-3 border-t border-slate-200 space-y-1.5 text-xs text-slate-600">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span className="font-mono font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
               </div>
-              <div className="flex items-center justify-between text-slate-600">
-                <span>Calculated GST Tax:</span>
-                <span className="font-mono">{formatCurrency(taxTotal)}</span>
-              </div>
-              <div className="flex items-center justify-between font-bold text-base text-slate-900 pt-2 border-t border-slate-100">
-                <span>Total Amount:</span>
-                <span className="font-mono text-sky-900">{formatCurrency(total)}</span>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-700 font-medium">
+                  <span>Member Discount ({memberDiscountPct}%)</span>
+                  <span className="font-mono">-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-bold text-slate-900">
+                <span>Estimated Total</span>
+                <span className="font-mono text-sky-800">{formatCurrency(totalEstimate)}</span>
               </div>
             </div>
 
-            {/* Complete Order Button */}
+            {/* Checkout Button */}
             <div className="mt-5">
               <Button
                 variant="primary"
                 size="md"
-                className="w-full"
+                className="w-full justify-center"
                 disabled={cart.length === 0}
-                isLoading={submitting}
                 onClick={handleCheckout}
+                isLoading={submitting}
               >
-                Complete POS Sale ({formatCurrency(total)})
+                Complete POS Sale ({formatCurrency(totalEstimate)})
               </Button>
+              <p className="mt-1.5 text-center text-3xs text-slate-400">
+                Creates an order and synchronizes stock immediately.
+              </p>
             </div>
           </Card>
         </div>

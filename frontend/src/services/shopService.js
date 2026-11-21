@@ -2,6 +2,7 @@ import apiClient from '../lib/axios';
 
 /**
  * Service for Pro-Shop Products, Inventory, Stock Adjustments & Orders.
+ * Conforms to backend endpoints in backend/app/modules/shop/routes.py
  */
 export const shopService = {
   // Categories
@@ -32,6 +33,7 @@ export const shopService = {
   },
 
   async updateProduct(productId, data) {
+    // Note: unit_price and tax_rate require owner role. Stock cannot be changed here.
     const res = await apiClient.put(`/shop/products/${productId}`, data);
     return res.data;
   },
@@ -43,11 +45,13 @@ export const shopService = {
   },
 
   async adjustStock(data) {
+    // Requires: { product_id, quantity_change, reason }
     const res = await apiClient.post('/shop/inventory/adjust', data);
     return res.data;
   },
 
   async restock(data) {
+    // Requires: { product_id, quantity_added, unit_cost, supplier_name, notes? }
     const res = await apiClient.post('/shop/inventory/restock', data);
     return res.data;
   },
@@ -73,8 +77,20 @@ export const shopService = {
     return res.data;
   },
 
-  async cancelOrder(orderId) {
-    const res = await apiClient.post(`/shop/orders/${orderId}/cancel`);
+  async confirmOrder(orderId) {
+    const res = await apiClient.post(`/shop/orders/${orderId}/confirm`);
+    return res.data;
+  },
+
+  async completeOrder(orderId) {
+    const res = await apiClient.post(`/shop/orders/${orderId}/complete`);
+    return res.data;
+  },
+
+  async cancelOrder(orderId, reason = null) {
+    const res = await apiClient.post(`/shop/orders/${orderId}/cancel`, null, {
+      params: reason ? { reason } : {},
+    });
     return res.data;
   },
 };

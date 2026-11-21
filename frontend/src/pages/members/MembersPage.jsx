@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, UserPlus, Search, RefreshCw, Award, Calendar, CheckCircle } from 'lucide-react';
+import { Users, UserPlus, Search, RefreshCw, Award, Calendar, History, CheckCircle2 } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -25,11 +25,18 @@ export const MembersPage = () => {
   const [savingMember, setSavingMember] = useState(false);
   const [addError, setAddError] = useState('');
 
-  // Renew Modal
+  // Renew / Change Plan Modal
   const [renewModalOpen, setRenewModalOpen] = useState(false);
   const [memberToRenew, setMemberToRenew] = useState(null);
   const [renewPlanId, setRenewPlanId] = useState('');
+  const [renewNotes, setRenewNotes] = useState('');
   const [renewing, setRenewing] = useState(false);
+
+  // Subscription History Modal
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [memberForHistory, setMemberForHistory] = useState(null);
+  const [subscriptionHistory, setSubscriptionHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const { showToast } = useToast();
 
@@ -38,7 +45,7 @@ export const MembersPage = () => {
     try {
       const params = {};
       if (searchTerm) params.search = searchTerm;
-      if (statusFilter) params.status = statusFilter;
+      if (statusFilter !== '') params.is_active = statusFilter === 'active';
 
       const [membersData, plansData] = await Promise.all([
         memberService.getMembers(params),
@@ -46,12 +53,15 @@ export const MembersPage = () => {
       ]);
       setMembers(membersData || []);
       setPlans(plansData || []);
+      if (plansData?.length > 0 && !selectedPlanId) {
+        setSelectedPlanId(plansData[0].id);
+      }
     } catch (err) {
       showToast?.('Failed to load member directory.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, showToast]);
+  }, [searchTerm, statusFilter, selectedPlanId, showToast]);
 
   useEffect(() => {
     loadData();
@@ -59,27 +69,30 @@ export const MembersPage = () => {
 
   const handleCreateMember = async (e) => {
     e.preventDefault();
-    if (!fullName || !email || !phone) {
-      setAddError('Full name, email, and phone are required.');
+    if (!fullName || !email || !selectedPlanId) {
+      setAddError('Full name, email, and a selected membership plan are required.');
       return;
     }
     setSavingMember(true);
     setAddError('');
 
     try {
-      const payload = { full_name: fullName, email, phone };
-      if (selectedPlanId) payload.membership_plan_id = selectedPlanId;
+      const payload = {
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone: phone ? phone.trim() : undefined,
+        plan_id: selectedPlanId,
+      };
 
       await memberService.createMember(payload);
-      showToast?.('Member onboarded successfully!', 'success');
+      showToast?.('Member onboarded successfully with active plan tier!', 'success');
       setIsAddModalOpen(false);
       setFullName('');
       setEmail('');
       setPhone('');
-      setSelectedPlanId('');
       loadData();
     } catch (err) {
-      setAddError(err.response?.data?.detail || 'Failed to onboard member.');
+      setAddError(err.response?.data?.detail || err.message || 'Failed to onboard member.');
     } finally {
       setSavingMember(false);
     }
@@ -91,18 +104,43 @@ export const MembersPage = () => {
     setRenewing(true);
 
     try {
-      const payload = {};
-      if (renewPlanId) payload.plan_id = renewPlanId;
-
-      await memberService.renewSubscription(memberToRenew.id, payload);
-      showToast?.(`Subscription renewed for ${memberToRenew.full_name}!`, 'success');
+      if (renewPlanId && renewPlanId !== memberToRenew.plan_id) {
+        // Plan Tier Change
+        await memberService.changePlan(memberToRenew.id, {
+          new_plan_id: renewPlanId,
+          notes: renewNotes || 'Plan tier changed at reception',
+        });
+        showToast?.(`Membership upgraded to new tier for ${memberToRenew.full_name}!`, 'success');
+      } else {
+        // Same Plan Renewal
+        await memberService.renewSubscription(memberToRenew.id, {
+          notes: renewNotes || 'Standard subscription renewal',
+        });
+        showToast?.(`Subscription renewed seamlessly for ${memberToRenew.full_name}!`, 'success');
+      }
       setRenewModalOpen(false);
       setMemberToRenew(null);
+      setRenewNotes('');
       loadData();
     } catch (err) {
-      showToast?.(err.response?.data?.detail || 'Failed to renew subscription.', 'error');
+      showToast?.(err.response?.data?.detail || err.message || 'Failed to renew subscription.', 'error');
     } finally {
       setRenewing(false);
+    }
+  };
+
+  const openHistoryModal = async (member) => {
+    setMemberForHistory(member);
+    setHistoryModalOpen(true);
+    setLoadingHistory(true);
+    try {
+      const history = await memberService.getMemberSubscriptions(member.id);
+      setSubscriptionHistory(history || []);
+    } catch (err) {
+      showToast?.('Failed to load subscription history.', 'error');
+      setSubscriptionHistory([]);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -110,7 +148,7 @@ export const MembersPage = () => {
     <div className="space-y-6 pb-12">
       <PageHeader
         title="Member Directory"
-        subtitle="Active club subscriptions, walk-in records, profile onboarding, and tier renewals."
+        subtitle="Active club subscriptions, profile onboarding, plan tiers, and renewal history."
         breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Members' }]}
         actions={
           <Button
@@ -133,7 +171,7 @@ export const MembersPage = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, email, phone..."
+              placeholder="Search by member name, email..."
               className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-slate-900 focus:ring-1 focus:ring-sky-500"
             />
           </div>
@@ -144,7 +182,7 @@ export const MembersPage = () => {
             className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-700 bg-white"
           >
             <option value="">All Statuses</option>
-            <option value="active">Active Only</option>
+            <option value="active">Active Members</option>
             <option value="inactive">Inactive / Expired</option>
           </select>
         </div>
@@ -170,7 +208,7 @@ export const MembersPage = () => {
                   <th className="py-2.5 px-4">Member Name</th>
                   <th className="py-2.5 px-4">Contact</th>
                   <th className="py-2.5 px-4">Membership Plan</th>
-                  <th className="py-2.5 px-4">Subscription Expiry</th>
+                  <th className="py-2.5 px-4">Subscription Period</th>
                   <th className="py-2.5 px-4">Status</th>
                   <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
@@ -184,35 +222,51 @@ export const MembersPage = () => {
                     </td>
                     <td className="py-3 px-4 text-slate-600">
                       <p>{m.email}</p>
-                      <p className="text-3xs text-slate-400 font-mono">{m.phone}</p>
+                      <p className="text-3xs text-slate-400 font-mono">{m.phone || '—'}</p>
                     </td>
                     <td className="py-3 px-4">
-                      {m.plan_name ? (
-                        <span className="font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded text-2xs">
-                          {m.plan_name}
-                        </span>
+                      {m.plan ? (
+                        <div>
+                          <span className="font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded text-2xs">
+                            {m.plan.name}
+                          </span>
+                          <p className="text-3xs text-slate-400 mt-0.5">
+                            {m.plan.court_discount_percent}% court disc
+                          </p>
+                        </div>
                       ) : (
                         <span className="text-slate-400 italic">None / Walk-In</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-mono text-slate-700">
-                      {m.expiry_date ? formatDate(m.expiry_date) : '—'}
+                    <td className="py-3 px-4 text-slate-700">
+                      <p className="font-mono">{formatDate(m.start_date)} to {formatDate(m.expiry_date)}</p>
                     </td>
                     <td className="py-3 px-4">
                       <StatusBadge status={m.is_active ? 'active' : 'inactive'} />
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setMemberToRenew(m);
-                          setRenewPlanId(m.membership_plan_id || (plans[0]?.id ?? ''));
-                          setRenewModalOpen(true);
-                        }}
-                      >
-                        Renew Plan
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openHistoryModal(m)}
+                          leftIcon={History}
+                        >
+                          History
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setMemberToRenew(m);
+                            setRenewPlanId(m.plan_id || (plans[0]?.id ?? ''));
+                            setRenewNotes('');
+                            setRenewModalOpen(true);
+                          }}
+                        >
+                          Renew / Upgrade
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -227,7 +281,7 @@ export const MembersPage = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Onboard New Member"
-        subtitle="Register customer profile and optional initial membership plan"
+        subtitle="Register customer profile and attach initial membership plan"
       >
         <form onSubmit={handleCreateMember} className="space-y-4 text-xs">
           {addError && (
@@ -261,32 +315,34 @@ export const MembersPage = () => {
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Phone Number *</label>
+              <label className="block font-medium text-slate-700 mb-1">Phone Number</label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+919876543210"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-                required
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-medium text-slate-700 mb-1">Initial Membership Plan (Optional)</label>
+            <label className="block font-medium text-slate-700 mb-1">Select Membership Plan *</label>
             <select
               value={selectedPlanId}
               onChange={(e) => setSelectedPlanId(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
+              required
             >
-              <option value="">-- No Plan / Walk-in Only --</option>
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.duration_months} mo • {formatCurrency(p.price)})
+                  {p.name} ({p.duration_days || 30} Days • {formatCurrency(p.monthly_fee)} • {p.court_discount_percent}% court disc)
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-3xs text-slate-500">
+              Note: Onboarding a member sets subscription status to active. Financial payment must be collected via Finance invoices.
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -300,12 +356,12 @@ export const MembersPage = () => {
         </form>
       </Modal>
 
-      {/* Renew Subscription Modal */}
+      {/* Renew / Change Plan Modal */}
       <Modal
         isOpen={renewModalOpen}
         onClose={() => setRenewModalOpen(false)}
-        title="Renew Member Subscription"
-        subtitle={`Extend membership for ${memberToRenew?.full_name}`}
+        title="Renew or Change Plan"
+        subtitle={`Extend or upgrade subscription for ${memberToRenew?.full_name}`}
       >
         <form onSubmit={handleRenewSubscription} className="space-y-4 text-xs">
           <div>
@@ -318,16 +374,27 @@ export const MembersPage = () => {
             >
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.duration_months} Months • {formatCurrency(p.price)} • {p.court_discount_percent}% Court Discount)
+                  {p.name} ({p.duration_days || 30} Days • {formatCurrency(p.monthly_fee)} • {p.court_discount_percent}% Disc)
                 </option>
               ))}
             </select>
           </div>
 
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">Notes / Reception Remarks</label>
+            <input
+              type="text"
+              value={renewNotes}
+              onChange={(e) => setRenewNotes(e.target.value)}
+              placeholder="e.g. Counter payment promised or renewal requested"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+            />
+          </div>
+
           <div className="p-3 bg-sky-50 rounded-lg border border-sky-200 text-sky-900">
-            <p className="font-semibold">Continuous Renewal Policy</p>
+            <p className="font-semibold">Continuous Renewal & Integrity Policy</p>
             <p className="mt-0.5 text-2xs text-sky-800">
-              If the member subscription is currently active, the new duration extends seamlessly from the current expiry date.
+              If currently active, the subscription end-date extends seamlessly. Creating or renewing a subscription does NOT fabricate a payment record.
             </p>
           </div>
 
@@ -336,10 +403,59 @@ export const MembersPage = () => {
               Cancel
             </Button>
             <Button variant="primary" size="sm" type="submit" isLoading={renewing}>
-              Confirm Renewal
+              Confirm Extension
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Subscription History Modal */}
+      <Modal
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        title="Subscription Ledger History"
+        subtitle={`Immutable historical snapshot records for ${memberForHistory?.full_name}`}
+        size="lg"
+      >
+        <div className="space-y-3 text-xs">
+          {loadingHistory ? (
+            <div className="p-8 text-center text-slate-400">Loading subscription records...</div>
+          ) : subscriptionHistory.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">No prior subscription records found for this member.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-[360px]">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold sticky top-0">
+                    <th className="py-2 px-3">Plan Snapshot</th>
+                    <th className="py-2 px-3">Start Date</th>
+                    <th className="py-2 px-3">End Date</th>
+                    <th className="py-2 px-3">Fee Snapshot</th>
+                    <th className="py-2 px-3">Sub Status</th>
+                    <th className="py-2 px-3">Payment Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {subscriptionHistory.map((sub) => (
+                    <tr key={sub.id} className="hover:bg-slate-50/50">
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">{sub.plan_name_snapshot}</td>
+                      <td className="py-2.5 px-3 font-mono">{formatDate(sub.start_date)}</td>
+                      <td className="py-2.5 px-3 font-mono">{formatDate(sub.end_date)}</td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">{formatCurrency(sub.price_paid)}</td>
+                      <td className="py-2.5 px-3"><StatusBadge status={sub.subscription_status} /></td>
+                      <td className="py-2.5 px-3"><StatusBadge status={sub.payment_status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="pt-3 border-t border-slate-100 flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setHistoryModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

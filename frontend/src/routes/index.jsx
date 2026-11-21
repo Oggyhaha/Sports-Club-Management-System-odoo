@@ -277,7 +277,15 @@ export const AppRoutes = () => {
         <Route
           path="/hr/payroll"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+              <PayrollPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/hr/payslips"
+          element={
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
               <PayrollPage />
             </RoleRoute>
           }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShoppingBag, RefreshCw, Eye, XCircle } from 'lucide-react';
+import { ShoppingBag, RefreshCw, Eye, XCircle, CheckCircle, Package } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -29,8 +29,8 @@ export const ShopOrdersPage = () => {
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { order_type: 'shop' };
-      if (statusFilter) params.status = statusFilter;
+      const params = {};
+      if (statusFilter) params.order_status = statusFilter;
       const data = await shopService.getOrders(params);
       setOrders(data || []);
     } catch (err) {
@@ -48,16 +48,21 @@ export const ShopOrdersPage = () => {
     if (!orderToCancel) return;
     setCancelling(true);
     try {
-      await shopService.cancelOrder(orderToCancel.id);
-      showToast?.('Order cancelled and inventory restored.', 'success');
+      await shopService.cancelOrder(orderToCancel.id, 'Counter order cancelled');
+      showToast?.('Order cancelled and inventory restored to warehouse.', 'success');
       setCancelModalOpen(false);
       setOrderToCancel(null);
       loadOrders();
     } catch (err) {
-      showToast?.(err.response?.data?.detail || 'Failed to cancel order.', 'error');
+      showToast?.(err.response?.data?.detail || err.message || 'Failed to cancel order.', 'error');
     } finally {
       setCancelling(false);
     }
+  };
+
+  const openDetails = (order) => {
+    setSelectedOrder(order);
+    setDetailsModalOpen(true);
   };
 
   return (
@@ -73,7 +78,9 @@ export const ShopOrdersPage = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="text-xs px-3 py-1.5 border border-slate-300 rounded-lg text-slate-900 bg-white"
             >
-              <option value="">All Statuses</option>
+              <option value="">All Fulfillment Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
@@ -88,121 +95,140 @@ export const ShopOrdersPage = () => {
         {loading ? (
           <div className="p-12 text-center text-slate-400 text-xs">Loading shop orders...</div>
         ) : orders.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-xs">No orders recorded.</div>
+          <div className="p-12 text-center text-slate-500 text-xs">No orders recorded matching filter criteria.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="py-2.5 px-4">Order ID</th>
+                  <th className="py-2.5 px-4">Order #</th>
                   <th className="py-2.5 px-4">Date & Time</th>
                   <th className="py-2.5 px-4">Customer</th>
-                  <th className="py-2.5 px-4 text-right">Items</th>
-                  <th className="py-2.5 px-4 text-right">Tax (INR)</th>
-                  <th className="py-2.5 px-4 text-right">Total (INR)</th>
-                  <th className="py-2.5 px-4">Status</th>
+                  <th className="py-2.5 px-4 text-center">Items</th>
+                  <th className="py-2.5 px-4 text-right">Total Amount</th>
+                  <th className="py-2.5 px-4">Fulfillment</th>
+                  <th className="py-2.5 px-4">Payment</th>
                   <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {orders.map((ord) => (
-                  <tr key={ord.id} className="hover:bg-slate-50/60">
-                    <td className="py-3 px-4 font-mono text-2xs text-slate-500">
-                      {ord.id.substring(0, 8)}...
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 font-mono text-2xs">
-                      {formatDateTime(ord.created_at)}
-                    </td>
-                    <td className="py-3 px-4">
-                      {ord.member?.full_name ? (
-                        <span className="font-semibold text-slate-900">{ord.member.full_name}</span>
-                      ) : (
-                        <span className="text-slate-500 italic">Walk-In Retail</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-semibold text-slate-900">
-                      {ord.items?.length || 0}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-slate-600">
-                      {formatCurrency(ord.tax_amount || 0)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
-                      {formatCurrency(ord.total_amount || 0)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={ord.status} />
-                    </td>
-                    <td className="py-3 px-4 text-right space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedOrder(ord);
-                          setDetailsModalOpen(true);
-                        }}
-                      >
-                        Details
-                      </Button>
-                      {ord.status !== 'cancelled' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-rose-600 hover:text-rose-700"
-                          onClick={() => {
-                            setOrderToCancel(ord);
-                            setCancelModalOpen(true);
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {orders.map((o) => {
+                  const status = o.order_status || o.status;
+                  const canCancel = status !== 'cancelled' && status !== 'completed';
+
+                  return (
+                    <tr key={o.id} className="hover:bg-slate-50/60">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                        {o.order_number || `#${o.id.slice(0, 8)}`}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500">
+                        {formatDateTime(o.created_at)}
+                      </td>
+                      <td className="py-3 px-4 font-medium text-slate-800">
+                        {o.customer_type === 'member'
+                          ? (o.member?.full_name || 'Club Member')
+                          : (o.walk_in_name || 'Walk-in Guest')}
+                      </td>
+                      <td className="py-3 px-4 text-center font-mono font-semibold text-slate-700">
+                        {o.items?.length || 0}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                        {formatCurrency(o.total_amount || 0)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <StatusBadge status={status} />
+                      </td>
+                      <td className="py-3 px-4">
+                        <StatusBadge status={o.payment_status || 'unpaid'} />
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDetails(o)}
+                            leftIcon={Eye}
+                          >
+                            View
+                          </Button>
+                          {canCancel && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-400 hover:text-rose-600"
+                              onClick={() => {
+                                setOrderToCancel(o);
+                                setCancelModalOpen(true);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </Card>
 
-      {/* Details Modal */}
+      {/* Order Itemization Details Modal */}
       <Modal
         isOpen={detailsModalOpen}
         onClose={() => setDetailsModalOpen(false)}
-        title="Order Receipt Details"
-        subtitle={`Order #${selectedOrder?.id?.substring(0, 8)}`}
+        title={`Order Details ${selectedOrder?.order_number || ''}`}
+        subtitle={`Placed on ${selectedOrder ? formatDateTime(selectedOrder.created_at) : ''}`}
+        size="lg"
       >
         {selectedOrder && (
           <div className="space-y-4 text-xs">
-            <div className="p-3 bg-slate-50 rounded-lg flex items-center justify-between text-slate-600">
+            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg">
               <div>
-                <p>Status: <strong className="capitalize text-slate-900">{selectedOrder.status}</strong></p>
-                <p className="text-3xs text-slate-400 mt-0.5">{formatDateTime(selectedOrder.created_at)}</p>
+                <span className="text-slate-400 text-3xs uppercase">Customer Account</span>
+                <p className="font-semibold text-slate-900 mt-0.5">
+                  {selectedOrder.customer_type === 'member'
+                    ? (selectedOrder.member?.full_name || 'Club Member')
+                    : (selectedOrder.walk_in_name || 'Walk-in Patron')}
+                </p>
               </div>
-              <div className="text-right">
-                <p className="font-bold text-slate-900 font-mono text-base">{formatCurrency(selectedOrder.total_amount)}</p>
-                <p className="text-3xs text-slate-400">Total Charged</p>
+              <div>
+                <span className="text-slate-400 text-3xs uppercase">Payment Ledger Status</span>
+                <p className="font-semibold text-slate-900 mt-0.5 capitalize">
+                  {selectedOrder.payment_status || 'Unpaid'}
+                </p>
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div>
+              <h4 className="font-bold text-slate-900 mb-2">Itemized Breakdown</h4>
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-semibold">
-                  <tr className="py-2 px-3">
-                    <th className="py-2 px-3">Item</th>
-                    <th className="py-2 px-3 text-right">Qty</th>
+                <thead>
+                  <tr className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                    <th className="py-2 px-3">Item Snapshot</th>
+                    <th className="py-2 px-3 text-center">Qty</th>
                     <th className="py-2 px-3 text-right">Unit Price</th>
-                    <th className="py-2 px-3 text-right">Total</th>
+                    <th className="py-2 px-3 text-right">Tax Rate</th>
+                    <th className="py-2 px-3 text-right">Line Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {selectedOrder.items?.map((item, idx) => (
-                    <tr key={item.id || idx}>
-                      <td className="py-2 px-3 font-semibold text-slate-900">{item.product_name}</td>
-                      <td className="py-2 px-3 text-right font-mono">{item.quantity}</td>
-                      <td className="py-2 px-3 text-right font-mono">{formatCurrency(item.unit_price)}</td>
+                    <tr key={idx} className="hover:bg-slate-50/50">
+                      <td className="py-2 px-3 font-semibold text-slate-800">
+                        {item.product_name_snapshot || item.product?.name || 'Merchandise'}
+                      </td>
+                      <td className="py-2 px-3 text-center font-mono">{item.quantity}</td>
+                      <td className="py-2 px-3 text-right font-mono">
+                        {formatCurrency(item.unit_price_snapshot || item.unit_price || 0)}
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono">
+                        {item.tax_rate_snapshot || 0}%
+                      </td>
                       <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
-                        {formatCurrency(Number(item.unit_price) * item.quantity)}
+                        {formatCurrency(item.line_total || 0)}
                       </td>
                     </tr>
                   ))}
@@ -210,7 +236,26 @@ export const ShopOrdersPage = () => {
               </table>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="pt-3 border-t border-slate-200 flex flex-col items-end gap-1 text-slate-700">
+              <div className="flex justify-between w-48 text-2xs">
+                <span>Subtotal:</span>
+                <span className="font-mono">{formatCurrency(selectedOrder.subtotal || 0)}</span>
+              </div>
+              <div className="flex justify-between w-48 text-2xs text-emerald-700">
+                <span>Discount:</span>
+                <span className="font-mono">-{formatCurrency(selectedOrder.discount_amount || 0)}</span>
+              </div>
+              <div className="flex justify-between w-48 text-2xs">
+                <span>Tax:</span>
+                <span className="font-mono">{formatCurrency(selectedOrder.tax_amount || 0)}</span>
+              </div>
+              <div className="flex justify-between w-48 text-sm font-bold text-slate-900 pt-1 border-t border-slate-200">
+                <span>Total:</span>
+                <span className="font-mono text-sky-800">{formatCurrency(selectedOrder.total_amount || 0)}</span>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
               <Button variant="outline" size="sm" onClick={() => setDetailsModalOpen(false)}>
                 Close
               </Button>
@@ -219,15 +264,15 @@ export const ShopOrdersPage = () => {
         )}
       </Modal>
 
-      {/* Cancel Confirmation Dialog */}
+      {/* Cancel Order Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={cancelModalOpen}
         onClose={() => setCancelModalOpen(false)}
         onConfirm={handleConfirmCancel}
-        title="Cancel POS Order"
-        message="Are you sure you want to cancel this order? Cancelled items will be returned to inventory stock immediately."
-        confirmText="Confirm Order Cancellation"
-        confirmVariant="danger"
+        title="Cancel Pro-Shop Order"
+        message={`Are you sure you want to cancel order '${orderToCancel?.order_number}'? Physical items will be restored to warehouse inventory immediately.`}
+        confirmText="Cancel Order"
+        variant="danger"
         isLoading={cancelling}
       />
     </div>

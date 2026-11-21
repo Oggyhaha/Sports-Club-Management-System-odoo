@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CreditCard, Plus, RefreshCw, UserCheck, Shield } from 'lucide-react';
+import { CreditCard, Plus, RefreshCw, UserCheck, Shield, FileSpreadsheet, Percent, Layers } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -21,8 +21,6 @@ export const SalaryStructuresPage = () => {
   const [isStructModalOpen, setIsStructModalOpen] = useState(false);
   const [structName, setStructName] = useState('');
   const [structDesc, setStructDesc] = useState('');
-  const [basicRate, setBasicRate] = useState('50.0'); // 50%
-  const [hraRate, setHraRate] = useState('20.0'); // 20%
   const [submittingStruct, setSubmittingStruct] = useState(false);
   const [structError, setStructError] = useState('');
 
@@ -48,12 +46,18 @@ export const SalaryStructuresPage = () => {
       ]);
       setStructures(structsData || []);
       setEmployees(empsData || []);
+      if (structsData?.length > 0 && !selectedStructId) {
+        setSelectedStructId(structsData[0].id);
+      }
+      if (empsData?.length > 0 && !selectedEmpId) {
+        setSelectedEmpId(empsData[0].id);
+      }
     } catch (err) {
       showToast?.('Failed to load salary structures.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [selectedStructId, selectedEmpId, showToast]);
 
   useEffect(() => {
     loadData();
@@ -66,37 +70,47 @@ export const SalaryStructuresPage = () => {
     setStructError('');
 
     try {
+      // Backend SalaryStructureCreate schema:
+      // { name, description?, components: List[SalaryComponentCreate] }
+      // SalaryComponentCreate: { component_name, component_type: 'earning' | 'deduction', default_amount }
       await payrollService.createSalaryStructure({
         name: structName,
-        description: structDesc,
+        description: structDesc || undefined,
         components: [
           {
-            name: 'Basic Pay',
+            component_name: 'Basic Pay',
             component_type: 'earning',
-            calculation_type: 'percentage',
-            percentage_value: basicRate,
+            default_amount: '0.00',
           },
           {
-            name: 'House Rent Allowance (HRA)',
+            component_name: 'House Rent Allowance (HRA)',
             component_type: 'earning',
-            calculation_type: 'percentage',
-            percentage_value: hraRate,
+            default_amount: '0.00',
           },
           {
-            name: 'Provident Fund (PF)',
+            component_name: 'Special Allowance',
+            component_type: 'earning',
+            default_amount: '0.00',
+          },
+          {
+            component_name: 'Provident Fund (PF)',
             component_type: 'deduction',
-            calculation_type: 'percentage',
-            percentage_value: '12.0',
+            default_amount: '0.00',
+          },
+          {
+            component_name: 'Professional Tax (PT)',
+            component_type: 'deduction',
+            default_amount: '0.00',
           },
         ],
       });
-      showToast?.('Salary structure published successfully!', 'success');
+      showToast?.('Salary structure and standard compensation components published!', 'success');
       setIsStructModalOpen(false);
       setStructName('');
       setStructDesc('');
       loadData();
     } catch (err) {
-      setStructError(err.response?.data?.detail || 'Failed to create salary structure.');
+      setStructError(err.response?.data?.detail || err.message || 'Failed to create salary structure.');
     } finally {
       setSubmittingStruct(false);
     }
@@ -104,24 +118,25 @@ export const SalaryStructuresPage = () => {
 
   const handleAssignSalary = async (e) => {
     e.preventDefault();
-    if (!selectedEmpId || !selectedStructId || !baseSalary) {
-      setAssignError('Please complete all assignment fields.');
+    if (!selectedEmpId || !selectedStructId) {
+      setAssignError('Please select both an employee and a salary structure.');
       return;
     }
     setSubmittingAssign(true);
     setAssignError('');
 
     try {
+      // Backend SalaryAssignmentCreate: { salary_structure_id, base_salary, effective_from }
       await payrollService.assignSalary(selectedEmpId, {
         salary_structure_id: selectedStructId,
         base_salary: baseSalary,
         effective_from: effectiveFrom,
       });
-      showToast?.('Salary structure assigned to employee!', 'success');
+      showToast?.('Employee compensation structure assigned successfully!', 'success');
       setIsAssignModalOpen(false);
       loadData();
     } catch (err) {
-      setAssignError(err.response?.data?.detail || 'Salary assignment failed.');
+      setAssignError(err.response?.data?.detail || err.message || 'Failed to assign salary.');
     } finally {
       setSubmittingAssign(false);
     }
@@ -131,7 +146,7 @@ export const SalaryStructuresPage = () => {
     <div className="space-y-6 pb-12">
       <PageHeader
         title="Salary Structures & Compensation"
-        subtitle="Earnings & deductions configuration, salary tier templates, and employee base pay assignments."
+        subtitle="Earnings and deductions templates, monthly CTC definitions, and employee structure assignments."
         breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Salary Structures' }]}
         actions={
           canManageHR && (
@@ -140,21 +155,17 @@ export const SalaryStructuresPage = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSelectedEmpId(employees[0]?.id || '');
-                  setSelectedStructId(structures[0]?.id || '');
                   setAssignError('');
                   setIsAssignModalOpen(true);
                 }}
                 leftIcon={UserCheck}
               >
-                Assign Staff Salary
+                Assign to Employee
               </Button>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => {
-                  setStructName('');
-                  setStructDesc('');
                   setStructError('');
                   setIsStructModalOpen(true);
                 }}
@@ -167,66 +178,101 @@ export const SalaryStructuresPage = () => {
         }
       />
 
-      {/* Salary Structures Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <div className="col-span-full p-12 text-center text-slate-400 text-xs">
-            Loading compensation templates...
-          </div>
-        ) : structures.length === 0 ? (
-          <div className="col-span-full p-12 text-center text-slate-500 text-xs bg-white rounded-xl border border-slate-200">
-            No salary structures configured.
-          </div>
-        ) : (
-          structures.map((s) => (
-            <div
-              key={s.id}
-              className="bg-white rounded-xl border border-slate-200 shadow-2xs hover:shadow-xs p-5 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-base font-bold text-slate-900">{s.name}</h3>
-                  <StatusBadge status={s.is_active ? 'active' : 'inactive'} />
-                </div>
-                {s.description && (
-                  <p className="text-2xs text-slate-500 mt-1 leading-relaxed">{s.description}</p>
-                )}
-
-                {/* Component Breakdown */}
-                <div className="mt-4 pt-3 border-t border-slate-100 space-y-2 text-xs">
-                  <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">
-                    Formula Components
-                  </p>
-                  {s.components?.map((c, idx) => (
-                    <div key={c.id || idx} className="flex items-center justify-between text-2xs">
-                      <span className="text-slate-700 font-medium">{c.name}</span>
-                      <span
-                        className={`font-mono font-semibold ${
-                          c.component_type === 'deduction' ? 'text-rose-700' : 'text-emerald-700'
-                        }`}
-                      >
-                        {c.component_type === 'deduction' ? '-' : '+'}
-                        {c.percentage_value}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <p>Pre-configured structures standardize base compensation, statutory PF, and allowances for payroll calculation.</p>
+        <Button variant="outline" size="sm" onClick={loadData} isLoading={loading} leftIcon={RefreshCw}>
+          Refresh
+        </Button>
       </div>
 
-      {/* Create Structure Modal */}
+      {loading ? (
+        <div className="p-12 text-center text-slate-400 text-xs">Loading compensation templates...</div>
+      ) : structures.length === 0 ? (
+        <Card className="text-center py-12 text-slate-500 text-xs">
+          <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          <p>No salary structures defined yet.</p>
+          {canManageHR && (
+            <Button variant="primary" size="sm" className="mt-4" onClick={() => setIsStructModalOpen(true)}>
+              Create First Template
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {structures.map((s) => (
+            <Card key={s.id} className="flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-sm">{s.name}</h3>
+                      <p className="text-3xs text-slate-400">Created {formatDate(s.created_at)}</p>
+                    </div>
+                  </div>
+                  <StatusBadge status={s.is_active ? 'active' : 'inactive'} />
+                </div>
+
+                {s.description && (
+                  <p className="mt-3 text-xs text-slate-600 line-clamp-2">{s.description}</p>
+                )}
+
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <span className="font-semibold text-slate-700 text-3xs uppercase tracking-wider block mb-2">
+                    Configured Components ({s.components?.length || 0})
+                  </span>
+                  <div className="space-y-1.5 text-xs">
+                    {s.components?.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between text-slate-700">
+                        <span className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            c.component_type === 'earning' ? 'bg-emerald-500' : 'bg-rose-500'
+                          }`} />
+                          {c.component_name}
+                        </span>
+                        <span className={`text-3xs font-semibold uppercase px-1.5 py-0.2 rounded ${
+                          c.component_type === 'earning' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
+                        }`}>
+                          {c.component_type}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-2xs text-slate-500">
+                <span>Statutory Deductions Embedded</span>
+                {canManageHR && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedStructId(s.id);
+                      setIsAssignModalOpen(true);
+                    }}
+                  >
+                    Assign
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create Salary Structure Modal */}
       <Modal
         isOpen={isStructModalOpen}
         onClose={() => setIsStructModalOpen(false)}
         title="Create Salary Structure Template"
-        subtitle="Define base earnings percentages and statutory deductions"
+        subtitle="Defines standardized components for monthly payroll computation"
       >
         <form onSubmit={handleCreateStructure} className="space-y-4 text-xs">
           {structError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-medium">
               {structError}
             </div>
           )}
@@ -237,46 +283,40 @@ export const SalaryStructuresPage = () => {
               type="text"
               value={structName}
               onChange={(e) => setStructName(e.target.value)}
-              placeholder="e.g. Standard Operations Staff (Tier 1)"
+              placeholder="e.g. Standard Full-Time Staff (Grade A)"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">Basic Pay (% of Base) *</label>
-              <input
-                type="text"
-                value={basicRate}
-                onChange={(e) => setBasicRate(e.target.value)}
-                placeholder="50.0"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">HRA (% of Base) *</label>
-              <input
-                type="text"
-                value={hraRate}
-                onChange={(e) => setHraRate(e.target.value)}
-                placeholder="20.0"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-                required
-              />
-            </div>
-          </div>
-
           <div>
-            <label className="block font-medium text-slate-700 mb-1">Description</label>
+            <label className="block font-medium text-slate-700 mb-1">Description (Optional)</label>
             <textarea
-              rows={2}
               value={structDesc}
               onChange={(e) => setStructDesc(e.target.value)}
-              placeholder="Applies to full-time coaches and reception personnel."
+              placeholder="e.g. Applies to permanent administrative and front-desk personnel"
+              rows={2}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
             />
+          </div>
+
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5 text-slate-600">
+            <span className="font-semibold text-slate-800 block mb-1">Standard Default Components:</span>
+            <p className="flex items-center gap-1.5 text-2xs text-emerald-700 font-medium">
+              ✓ Basic Pay (Earning)
+            </p>
+            <p className="flex items-center gap-1.5 text-2xs text-emerald-700 font-medium">
+              ✓ House Rent Allowance - HRA (Earning)
+            </p>
+            <p className="flex items-center gap-1.5 text-2xs text-emerald-700 font-medium">
+              ✓ Special Allowance (Earning)
+            </p>
+            <p className="flex items-center gap-1.5 text-2xs text-rose-700 font-medium">
+              ✓ Employee Provident Fund - PF (Deduction)
+            </p>
+            <p className="flex items-center gap-1.5 text-2xs text-rose-700 font-medium">
+              ✓ Professional Tax - PT (Deduction)
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -290,16 +330,16 @@ export const SalaryStructuresPage = () => {
         </form>
       </Modal>
 
-      {/* Assign Salary Modal */}
+      {/* Assign Structure Modal */}
       <Modal
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         title="Assign Salary to Employee"
-        subtitle="Map base monthly compensation and salary structure"
+        subtitle="Attach compensation structure and establish monthly gross CTC"
       >
         <form onSubmit={handleAssignSalary} className="space-y-4 text-xs">
           {assignError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-medium">
               {assignError}
             </div>
           )}
@@ -312,16 +352,16 @@ export const SalaryStructuresPage = () => {
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
               required
             >
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name} ({e.employee_code})
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.first_name} {emp.last_name} ({emp.employee_code} • {emp.designation?.title || 'Staff'})
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block font-medium text-slate-700 mb-1">Salary Structure *</label>
+            <label className="block font-medium text-slate-700 mb-1">Select Salary Structure *</label>
             <select
               value={selectedStructId}
               onChange={(e) => setSelectedStructId(e.target.value)}
@@ -330,7 +370,7 @@ export const SalaryStructuresPage = () => {
             >
               {structures.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {s.name} ({s.components?.length || 0} components)
                 </option>
               ))}
             </select>
@@ -338,13 +378,14 @@ export const SalaryStructuresPage = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Monthly Base Pay (INR) *</label>
+              <label className="block font-medium text-slate-700 mb-1">Monthly Base Salary (INR) *</label>
               <input
-                type="text"
+                type="number"
+                step="0.01"
+                min="0"
                 value={baseSalary}
                 onChange={(e) => setBaseSalary(e.target.value)}
-                placeholder="35000.00"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
                 required
               />
             </div>
@@ -365,7 +406,7 @@ export const SalaryStructuresPage = () => {
               Cancel
             </Button>
             <Button variant="primary" size="sm" type="submit" isLoading={submittingAssign}>
-              Confirm Assignment
+              Confirm Salary Assignment
             </Button>
           </div>
         </form>

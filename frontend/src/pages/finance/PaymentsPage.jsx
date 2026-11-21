@@ -127,6 +127,7 @@ export const PaymentsPage = () => {
           amount: amt,
           currency: 'INR',
           payment_method: paymentForm.payment_method,
+          idempotency_key: `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           external_reference: paymentForm.external_reference.trim() || null,
           notes: paymentForm.notes.trim() || null,
         },

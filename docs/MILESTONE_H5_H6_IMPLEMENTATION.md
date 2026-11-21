@@ -1,182 +1,175 @@
-# CHAMPIONS CLUB — COMBINED MILESTONE H5 + H6 IMPLEMENTATION REPORT
-## Production-Grade Operational Modules, HR, Payroll, Finance & Administration
+# CHAMPIONS CLUB — COMBINED MILESTONES H5 + H6
+## Production-Grade Operational Frontend, HR, Finance & Administration Implementation
 
 ---
 
-### Executive Summary
+## 1. Executive Summary
 
-Milestones H5 and H6 have been implemented as a comprehensive, production-grade suite of operational frontend workflows integrated with the existing FastAPI backend. 
+This document certifies the successful design, implementation, and verification of **Milestones H5 and H6** for the Champions Club Sports Club Management System.
 
-All modules strictly adhere to the audited backend API contracts (Milestone H1), maintain complete visual and structural consistency with the design system established in H2/H3, and preserve all executive dashboards and analytics implemented in H4 without regression.
+Building upon the backend foundation (Milestones A–G), the API contract audit (Milestone H1), the frontend architecture and design system (Milestones H2 & H3), and the Owner Executive Analytics Dashboard (Milestone H4), this phase integrates the remaining core operational workflows:
+- **Reception, Memberships & Subscriptions (H5)**
+- **Courts, Scheduling & Friday Social Play (H5)**
+- **Pro-Shop POS Counter, Inventory Management & Stock Movements (H5)**
+- **Cafeteria Menu & Kitchen Order Display (H5)**
+- **HR Employee Directory, Departments & Designations (H6)**
+- **Attendance Clock & Audit Corrections with Mandatory Reasons (H6)**
+- **Leave Applications & Administrative Review Pipeline (H6)**
+- **Salary Structures, Monthly Payroll Runs, Irreversible Finalization & Disbursements (H6)**
+- **Corporate Business Clients, Multi-Item Invoices, Payments, Allocations, Reversals & Refunds (H6)**
 
-- **Stack**: React 19, Vite 6, Tailwind CSS v4, Lucide React, Axios, Vitest, React Testing Library.
-- **Backend**: FastAPI, SQLAlchemy 2.x, PostgreSQL 18.
-- **API Mapping**: Complete documentation in [docs/MILESTONE_H5_H6_API_MAPPING.md](file:///C:/Sports%20Club%20Management%20System/docs/MILESTONE_H5_H6_API_MAPPING.md).
-- **Automated Verification**: 56 unit and integration tests passing (`pnpm test`), clean production bundle build (`pnpm run build`).
-
----
-
-## 1. Architecture & Component Directory Map
-
-### Shared Operational API Services (`frontend/src/services/`)
-- `memberService.js`: Member directory, profile details, membership plans catalog, new member onboarding, subscription renewals.
-- `courtService.js`: Court catalog, active status toggles, rate structures (hourly and walk-in).
-- `bookingService.js`: Dynamic 06:00–22:00 IST court availability checks, booking reservation lifecycle, Friday social play session management, player registration/deregistration.
-- `shopService.js`: Merchandise categories, product catalog, real-time inventory balances, stock movements, restocking intake, physical audit adjustments, POS checkout, order receipt repository, order cancellation with inventory restoration.
-- `cafeteriaService.js`: Menu categories, kitchen tickets queue (KDS), multi-stage preparation state transitions (`pending` -> `preparing` -> `ready` -> `completed` / `cancelled`), order ticket creation.
-- `employeeService.js`: Staff directory, departments and designations CRUD, employee onboarding, employment lifecycle status transitions (`active`, `on_leave`, `resigned`, `terminated`).
-- `attendanceService.js`: Daily attendance punch clock (check-in, check-out), daily attendance logs with date filtering, HR manual audit correction with mandatory reason tracking.
-- `leaveService.js`: Leave queue management, leave applications with calendar date validation, HR review workflow (approval/rejection with review notes), staff cancellation.
-- `payrollService.js`: Monthly payroll periods, automated draft calculations, review pipelines, irreversible payslip processing and lock, staff payslip viewing, salary disbursements with net payable balance enforcement.
-- `financeService.js`: Corporate business accounts, direct invoice generation with dynamic line items, invoice cancellation, payment intake recording, multi-invoice split allocations, allocation reversals, customer refunds, and payment receipts.
+All implementations adhere strictly to the authoritative backend ground truth established in `docs/MILESTONE_H5_H6_FINAL_API_AUDIT.md`.
 
 ---
 
-### Operational Page Workflows (`frontend/src/pages/`)
+## 2. Implemented Pages & Architecture
 
-#### Reception & Court Operations (Milestone H5)
-1. **Reception Dashboard (`/reception`, `/bookings/availability`)**:
-   - Component: `ReceptionDashboardPage.jsx` & `CourtScheduleMatrix.jsx`
-   - Features: Real-time 06:00–22:00 IST availability matrix, click-to-book cell interaction, date picker, today's reservation feed, walk-in and member booking modal (`CreateBookingModal.jsx`), booking cancellation.
-2. **Courts Directory (`/courts`)**:
-   - Component: `CourtsPage.jsx`
-   - Features: Facility court catalog, sport type categorization (badminton, tennis, squash, pickleball), hourly member rate vs. walk-in rate display, register new court modal, active status toggle.
-3. **Court Reservations Repository (`/bookings`)**:
-   - Component: `BookingsPage.jsx`
-   - Features: Searchable and filterable reservations ledger (by date, court, booking status), member vs. walk-in badge indicators, fee calculations, booking cancellation dialog.
-4. **Friday Social Play (`/social-play`)**:
-   - Component: `SocialPlayPage.jsx`
-   - Features: Weekly session cards, participant capacity tracker (`registered / max`), one-click join/leave actions for patrons, session scheduling modal, cancellation workflow.
+### A. Reception & Membership Operations (H5)
+1. **Reception Desk Workspace (`/reception` -> `ReceptionDashboardPage.jsx`)**
+   - Live court schedule matrix by hour and sport type.
+   - Quick-booking modal with IST timestamp normalization (`+05:30`) and walk-in support.
+   - Daily arrival indicators and quick member lookup.
+2. **Member Directory & Profiles (`/members` -> `MembersPage.jsx`)**
+   - Paginated searchable member ledger.
+   - New member creation requiring an initial `plan_id`.
+   - Subscription Ledger Modal showing complete historical subscription timeline.
+   - Distinct continuous renewal (`POST /members/{id}/renew`) vs plan tier changes (`POST /members/{id}/change-plan`).
+3. **Membership Plans Management (`/members/plans` -> `MembershipPlansPage.jsx`)**
+   - Active tier catalog showing duration in days (`duration_days`), monthly fee, and discount tiers (Court, Pro-Shop, Cafeteria discounts).
+   - Plan creation and active toggle limited to Club Owner.
 
-#### Memberships & Subscriptions (Milestone H5)
-5. **Member Directory (`/members`)**:
-   - Component: `MembersPage.jsx`
-   - Features: Comprehensive member roster with search by name/email/phone, status filters, active subscription status indicator, member onboarding modal with plan selection, continuous subscription renewal modal.
-6. **Membership Plans (`/members/plans`)**:
-   - Component: `MembershipPlansPage.jsx`
-   - Features: Public/staff membership tier cards, price, duration, court booking privileges, plan creation and editing dialogs restricted to Owner.
+### B. Courts & Social Play (H5)
+1. **Courts Directory (`/courts` -> `CourtsPage.jsx`)**
+   - Court cards with sport types (`tennis`, `badminton`, `squash`), active status, hourly rates, and walk-in rates.
+   - Add/edit court modal with non-negative pricing validation.
+2. **Court Reservations (`/bookings` -> `BookingsPage.jsx`)**
+   - Filterable reservation ledger (date filter, court filter, status filter).
+   - Walk-in patron vs member reservation identification.
+   - Modal-backed cancellation with state updates.
+3. **Friday Social Play (`/social-play` -> `SocialPlayPage.jsx`)**
+   - Mixer sessions with capacity indicators (`count / max_capacity`) and entry fees.
+   - Participant roster viewer modal displaying all joined members.
+   - Member self-service `Join Play` (`POST /social-sessions/{id}/join`) and `Leave` (`POST /social-sessions/{id}/leave`) actions.
 
-#### Retail Shop & Cafeteria (Milestone H5)
-7. **Shop POS Register (`/shop/pos`)**:
-   - Component: `ShopPosPage.jsx`
-   - Features: Point-of-Sale terminal with category tabs, live product search, real-time stock availability, cart management with quantity adjuster, member profile lookup for automatic discount application, checkout with multiple payment methods (cash, UPI, card).
-8. **Shop Inventory Control (`/shop/inventory`)**:
-   - Component: `ShopInventoryPage.jsx`
-   - Features: Physical stock balance tracking, low-stock threshold warning indicators, restock modal with supplier and cost logging, audit adjustment modal with mandatory justification reason, movement history ledger.
-9. **Shop Products Catalog (`/shop/products`)**:
-   - Component: `ShopProductsPage.jsx`
-   - Features: Product repository, SKU, barcode, retail pricing, member discount percentages, create product and category modals.
-10. **Shop Orders Ledger (`/shop/orders`)**:
-    - Component: `ShopOrdersPage.jsx`
-    - Features: Retail order history, receipt line items view modal, order cancellation with automatic stock restoration.
-11. **Kitchen Display System (`/cafeteria/kitchen`)**:
-    - Component: `CafeteriaKitchenPage.jsx`
-    - Features: Live 4-stage kitchen order pipeline (`Pending` -> `Preparing` -> `Ready` -> `Completed`), order ticket cards with elapsed time, one-click state advance buttons, ticket cancellation with ingredient restocking.
-12. **Cafeteria Menu (`/cafeteria/menu`)**:
-    - Component: `CafeteriaMenuPage.jsx`
-    - Features: Food and beverage catalog, allergen and category tags, price display, quick order ticket modal.
+### C. Pro-Shop & Cafeteria (H5)
+1. **Pro-Shop POS Register (`/shop/pos` -> `ShopPosPage.jsx`)**
+   - Dynamic catalog browsing with category filtering.
+   - Real-time stock status (`In Stock`, `Low Stock`, `Out of Stock`) preventing over-selling.
+   - Cart ticket with Member vs Walk-in patron support.
+   - Auto-confirming POS sale workflow (`POST /shop/orders` -> `POST /shop/orders/{id}/confirm`).
+2. **Shop Inventory & Stock Control (`/shop/inventory` -> `ShopInventoryPage.jsx`)**
+   - Unified inventory view with low-stock warning banners.
+   - Supplier Restock modal requiring positive `quantity` and `reason` (`POST /inventory/restock`).
+   - Audit Stock Adjustment modal requiring `new_stock` and mandatory `reason` (`POST /inventory/adjust`).
+   - Historical movement ledger tracking order deductions, supplier deliveries, and audit overrides.
+3. **Shop Products Management (`/shop/products` -> `ShopProductsPage.jsx`)**
+   - **Enforces Field-Level Authorization**: Non-owners (Shop Staff) have `unit_price` and `tax_rate` inputs disabled/hidden. Only Club Owners can modify prices and tax rates (`PUT /shop/products/{id}`).
+   - Stock counts are strictly excluded from product updates (delegated exclusively to inventory endpoints).
+4. **Cafeteria Kitchen Queue (`/cafeteria/kitchen` -> `CafeteriaKitchenPage.jsx`)**
+   - Kanban-style kitchen display: `Pending` -> `Preparing` -> `Ready` -> `Served`.
+   - **Strict State Machine**: Terminal order state is `served` (which updates backend `completed_at`).
+   - Prohibits cancellation once an order is in the `ready` state.
+5. **Cafeteria Menu Management (`/cafeteria/menu` -> `CafeteriaMenuPage.jsx`)**
+   - Menu item catalog with active toggles and item creation.
 
-#### Human Resources & Payroll (Milestone H6)
-13. **Staff Directory (`/hr/employees`)**:
-    - Component: `EmployeesPage.jsx`
-    - Features: Workforce directory, employee code, department and designation badges, hire date, status transition modal (`active`, `on_leave`, `resigned`, `terminated`).
-14. **Departments & Designations (`/hr/departments`)**:
-    - Component: `DepartmentsPage.jsx`
-    - Features: Organization structure management, department creation, designation assignment with department mapping.
-15. **Daily Attendance & Punch Clock (`/hr/attendance`)**:
-    - Component: `AttendancePage.jsx`
-    - Features: Employee self-service punch clock (clock in, clock out), daily attendance logs with date filtering, HR manual audit correction modal enforcing mandatory audit reasons.
-16. **Leave Applications & Review (`/hr/leaves`)**:
-    - Component: `LeavesPage.jsx`
-    - Features: Leave queue table, staff leave application modal with date range validation, HR review workflow (approve/reject modal with review notes), cancellation for pending requests.
-17. **Salary Structures (`/hr/salary-structures`)**:
-    - Component: `SalaryStructuresPage.jsx`
-    - Features: Compensation templates, itemized breakdown of earnings (Basic, HRA, Allowances) and deductions (PF, ESI, Tax), employee base pay assignment modal.
-18. **Monthly Payroll Runs (`/hr/payroll`)**:
-    - Component: `PayrollPage.jsx`
-    - Features: Monthly payroll period generation, draft calculation trigger, review lifecycle transition, **irreversible payslip lock confirmation dialog**, staff payslip ledger, payslip details viewer modal, partial/full salary disbursement modal with net payable balance enforcement.
+### D. Human Resources, Attendance & Leave (H6)
+1. **Employee Directory & Profiles (`/hr/employees` -> `EmployeesPage.jsx`)**
+   - Searchable employee directory showing employee code, department, designation, and status.
+   - Onboarding modal for new staff members.
+   - Status toggle and profile inspector.
+2. **Departments & Designations (`/hr/departments` -> `DepartmentsPage.jsx`)**
+   - Department tree and designation hierarchy configuration for HR administrators.
+3. **Attendance & Timeclock (`/hr/attendance` -> `AttendancePage.jsx`)**
+   - Self-service Clock In and Clock Out buttons for all staff.
+   - Daily attendance ledger with date filter.
+   - **HR Manual Punch Correction**: Modal requiring `new_check_in_time`, `new_check_out_time`, `new_status`, and a **mandatory non-empty `correction_reason`** (`PUT /attendance/{id}`).
+   - Unlinked employee warning banner displayed if user account has no associated employee profile (handling 404).
+4. **Leave Management (`/hr/leaves` -> `LeavesPage.jsx`)**
+   - Leave application modal with start/end date validation and leave type selection.
+   - HR Review Modal allowing `approved` or `rejected` with mandatory review remarks.
+   - Self-service cancellation allowed only when leave status is `pending`.
 
-#### Finance & Corporate Accounts (Milestone H6)
-19. **Corporate Accounts (`/finance/clients`)**:
-    - Component: `BusinessClientsPage.jsx`
-    - Features: Corporate client directory, GSTIN / Tax ID tracking, billing addresses, contact details, register corporate client modal, edit profile modal.
-20. **Invoices Ledger (`/finance/invoices`)**:
-    - Component: `InvoicesPage.jsx`
-    - Features: Authoritative accounts receivable ledger, status filtering (`issued`, `partially_paid`, `paid`, `cancelled`), direct invoice generation modal with dynamic line items builder (quantity, unit price, tax calculation), invoice cancellation dialog.
-21. **Payments & Allocations (`/finance/payments`)**:
-    - Component: `PaymentsPage.jsx`
-    - Features: Payment intake ledger, recording incoming cash/UPI/card/bank deposits, multi-invoice allocation modal (matching unallocated cash to outstanding invoices), payment allocation statement modal, allocation reversal modal with mandatory audit reason, customer refund authorization modal.
-22. **Official Receipts (`/finance/receipts`)**:
-    - Component: `ReceiptsPage.jsx`
-    - Features: Official receipt voucher archive, customer snapshot tracking, printable payment voucher modal with Champions Club official branding.
+### E. Payroll & Disbursements (H6)
+1. **Salary Structures & Assignments (`/hr/salary-structures` -> `SalaryStructuresPage.jsx`)**
+   - Salary structure definition with configurable earning and deduction components (`component_name`, `component_type`, `default_amount`).
+   - Salary assignment modal binding structures to employees with effective dates.
+2. **Monthly Payroll Operations (`/hr/payroll` -> `PayrollPage.jsx`)**
+   - Monthly period creation (`period_name`, `start_date`, `end_date`).
+   - Draft payroll calculation run (`POST /payroll/runs` with `payroll_period_id`).
+   - Full run details loaded via `GET /payroll/runs/{id}` with embedded `entries` and snapshot components.
+   - Status progression: `draft` -> `under_review` -> `processed`.
+   - **Irreversible Finalization**: Explicit `ConfirmationDialog` before executing `processRun`, warning that payslips will be permanently locked and snapshot components frozen.
+   - Salary Disbursement modal (`POST /payroll/entries/{id}/disburse`) recording `amount`, `disbursement_method`, idempotency key, and reference.
+   - **Self-Service Payslips Tab**: Dedicated tab for employees to view personal payslips (`GET /payroll/me/payslips`) with complete component breakdowns.
+
+### F. Finance, Invoicing & Payments (H6)
+1. **Corporate Business Clients (`/finance/clients` -> `BusinessClientsPage.jsx`)**
+   - Corporate profile management (`company_name`, `contact_person`, `email`, `phone`, `tax_id_gstin`, `billing_address`).
+   - Owner-restricted client creation and editing.
+2. **Invoices Ledger (`/finance/invoices` -> `InvoicesPage.jsx`)**
+   - Multi-line invoice generator enforcing customer integrity: Corporate Client XOR Walk-in Patron.
+   - Outstanding balance derivation and payment status indicators.
+   - Invoice cancellation modal (Owner only).
+3. **Payments & Double-Entry Allocations (`/finance/payments` -> `PaymentsPage.jsx`)**
+   - Payment intake recording with automatic `idempotency_key` generation.
+   - Multi-invoice payment allocation modal enforcing: `amount <= unallocated_payment` AND `amount <= invoice.outstanding_amount`.
+   - Allocation statement modal showing active allocations and net allocated amounts.
+   - **Partial/Full Allocation Reversal**: Owner-only modal requiring `amount` and `reason` (`POST /allocations/{id}/reverse`).
+   - **Unallocated Payment Refund**: Owner-only modal enforcing `amount <= unallocated_payment` (`POST /payments/{id}/refund`).
+4. **Official Payment Receipts (`/finance/receipts` -> `ReceiptsPage.jsx`)**
+   - Searchable repository of immutable system-generated receipts (`rcpt.customer_name_snapshot`, `rcpt.amount_received`).
+   - Printable receipt statement view.
 
 ---
 
-## 2. Role-Based Navigation & Access Control Matrix
+## 3. RBAC & Field-Level Authorization Matrix
 
-All routes are protected by JWT authentication (`ProtectedRoute`) and role authorization (`RoleRoute`):
-
-| Module Route | Permitted Roles | Primary Action / Purpose |
+| Domain / Action | Permitted Roles | Field-Level / Business Rule Safeguards |
 |---|---|---|
-| `/reception` | `owner`, `receptionist` | Front desk availability matrix and walk-in reservations |
-| `/bookings` | `owner`, `receptionist` | Facility booking repository and cancellations |
-| `/courts` | `owner`, `receptionist` | Court catalog, pricing, and active toggles |
-| `/social-play` | `owner`, `receptionist`, `member` | Friday social play mixer sign-ups and management |
-| `/members` | `owner`, `receptionist` | Member directory, onboarding, and renewal |
-| `/members/plans` | `owner`, `receptionist`, `member` | Membership plans catalog (edit restricted to `owner`) |
-| `/shop/pos` | `owner`, `shop_staff` | Retail point-of-sale checkout and discounts |
-| `/shop/inventory` | `owner`, `shop_staff` | Inventory tracking, restock, and audit adjustments |
-| `/shop/products` | `owner`, `shop_staff`, `member` | Product catalog and category administration |
-| `/shop/orders` | `owner`, `shop_staff` | Retail receipts and order voiding |
-| `/cafeteria/kitchen` | `owner`, `shop_staff`, `receptionist` | Kitchen order queue (KDS) state progression |
-| `/cafeteria/menu` | `owner`, `shop_staff`, `receptionist`, `member` | Cafeteria items and ticket ordering |
-| `/hr/employees` | `owner`, `hr_staff` | Workforce roster and status lifecycle changes |
-| `/hr/departments` | `owner`, `hr_staff` | Organizational department & designation hierarchies |
-| `/hr/attendance` | `owner`, `hr_staff`, `receptionist`, `shop_staff` | Punch clock and HR audit corrections |
-| `/hr/leaves` | `owner`, `hr_staff`, `receptionist`, `shop_staff` | Leave requests and HR review queue |
-| `/hr/salary-structures`| `owner`, `hr_staff` | Compensation templates and salary assignments |
-| `/hr/payroll` | `owner`, `hr_staff` | Payroll periods, irreversible runs, payslips, disbursements |
-| `/finance/clients` | `owner` | Institutional client management and GSTIN compliance |
-| `/finance/invoices` | `owner`, `receptionist`, `business_client` | Accounts receivable repository and direct billing |
-| `/finance/payments` | `owner`, `receptionist` | Payment deposits and multi-invoice allocations |
-| `/finance/receipts` | `owner`, `receptionist`, `shop_staff` | Payment receipts and printable vouchers |
+| **Member Directory** | Owner, Receptionist | Read all members; create/renew subscriptions |
+| **Membership Plans** | Owner | Modify plans; read-only for other staff |
+| **Courts CRUD** | Owner, Receptionist | Non-negative hourly rates |
+| **Bookings & Cancellation** | Owner, Receptionist | Modal confirmation; date/court filters |
+| **Social Play Join/Leave** | Owner, Receptionist, Member | Enforces `max_capacity`; restricts join if full |
+| **Shop POS Checkout** | Owner, Shop Staff | Prevents negative inventory stock |
+| **Shop Product Update** | Owner (Price/Tax), Shop Staff (Other) | `unit_price` & `tax_rate` read-only/disabled for Shop Staff |
+| **Inventory Restock/Adjust**| Owner, Shop Staff | Mandatory `reason` on every adjustment |
+| **Cafeteria Order Transition**| Owner, Shop Staff, Receptionist | Terminal state is `served`; `ready` orders cannot cancel |
+| **Employee Directory** | Owner, HR Staff | Full employee CRUD; self-service view for regular staff |
+| **Attendance Correction** | Owner, HR Staff | Mandatory non-empty `correction_reason` |
+| **Leave Approval/Rejection**| Owner, HR Staff | Requires reviewer remarks; cancel only if `pending` |
+| **Payroll Processing** | Owner, HR Staff | Confirmation dialog for irreversible `processRun` |
+| **Salary Disbursements** | Owner, HR Staff | Outstanding balance enforcement; idempotency keys |
+| **Corporate Clients** | Owner | GSTIN & company profile management |
+| **Invoice Cancellation** | Owner | Blocked if active allocations exist |
+| **Payment Allocations** | Owner, Receptionist | Restricted to unallocated balance & outstanding invoice amount |
+| **Payment Refunds** | Owner only | Enforces `amount <= unallocated_amount` |
+| **Allocation Reversals** | Owner only | Requires non-empty audit `reason` |
 
 ---
 
-## 3. Verification & Test Execution Results
+## 4. Test Verification & Results
 
-### Automated Frontend Test Suite
-- Test runner: Vitest 5.1.1 + React Testing Library
-- Command: `pnpm test`
-- Results:
-  - Total test files: **11 passed / 11 files (100%)**
-  - Total tests: **56 passed / 56 tests (100%)**
-  - Passing suites:
-    1. `src/test/OperationalModules.test.jsx` (14 tests) — Complete operational coverage
-    2. `src/test/OwnerDashboard.test.jsx` (10 tests) — Milestone H4 regression check
-    3. `src/test/AuthContext.test.jsx` (4 tests) — Session restoration & tokens
-    4. `src/test/Modal.test.jsx` (6 tests) — Focus trapping & accessibility
-    5. `src/test/LoginPage.test.jsx` (5 tests) — Auth form submission
-    6. `src/test/RegisterPage.test.jsx` (4 tests) — Onboarding validation
-    7. `src/test/TokenHandling.test.jsx` (3 tests) — 401 handling & issuance
-    8. `src/test/Sidebar.test.jsx` (3 tests) — Dynamic navigation
-    9. `src/test/FeedbackStates.test.jsx` (3 tests) — Error boundaries & loaders
-    10. `src/test/RoleRoute.test.jsx` (2 tests) — RBAC route protection
-    11. `src/test/ProtectedRoute.test.jsx` (2 tests) — Unauthenticated redirects
-
-### Production Compilation Build
-- Command: `pnpm run build`
-- Output:
-  - `dist/index.html`: 0.86 kB
-  - `dist/assets/index-Bir_ggOv.css`: 52.95 kB (gzip: 9.50 kB)
-  - `dist/assets/index-Djp6CsM0.js`: 1,078.96 kB (gzip: 292.91 kB)
-  - Exit code: **0 (Success)**
+- **Automated Test Suite**: Vitest + React Testing Library.
+- **Coverage**:
+  - `AuthContext.test.jsx`: Session lifecycle & token purges.
+  - `TokenHandling.test.jsx`: 401 response handling & token expiration UX.
+  - `LoginPage.test.jsx`: Form validation and credential submission.
+  - `RegisterPage.test.jsx`: Client-side validation and registration.
+  - `Modal.test.jsx`: Focus trapping, Escape key, backdrop dismissal.
+  - `FeedbackStates.test.jsx`: Loading spinners and empty state screens.
+  - `ProtectedRoute.test.jsx`: Redirects for unauthenticated users.
+  - `RoleRoute.test.jsx`: Unauthorized access guards.
+  - `Sidebar.test.jsx`: Responsive drawer and role-gated navigation.
+  - `OwnerDashboard.test.jsx`: Executive KPI rendering and period filtering.
+  - `OperationalModules.test.jsx`: 14 comprehensive unit and integration tests across all H5 and H6 operational workflows.
+- **Production Build**: Verified with Vite production bundling (`npm run build`).
 
 ---
 
-## 4. Scope Compliance & Milestone Boundaries
+## 5. File Map Updates
 
-1. **Milestone H4 Preservation**: Milestone H4 Executive Analytics and Owner Dashboard code, routes, and test suites are 100% intact and passing.
-2. **H7 Reservation Boundary**: Member self-service portal (`/member`) and corporate self-service portal (`/corporate`) remain reserved for Milestone H7.
-3. **Database Integrity**: The development database `champions_club` (PostgreSQL 18) with 94 members, 59 courts, 47 bookings, and 4 users was never dropped, truncated, or modified.
-4. **Backend Immutability**: No backend models, routes, or business logic were altered. All frontend modules connect to the existing verified endpoints.
+The following architectural files were added or updated to reflect Milestones H5 and H6:
+- `docs/MILESTONE_H5_H6_FINAL_API_AUDIT.md`: Pre-implementation contract audit.
+- `docs/MILESTONE_H5_H6_IMPLEMENTATION.md`: Official operational implementation record.
+- `docs/FILE_MAP.md`: Updated with new implementation documentation.

@@ -80,13 +80,12 @@ export const CreateBookingModal = ({
     setErrorMsg('');
 
     try {
-      // Backend requires ISO 8601 string: YYYY-MM-DDTHH:MM:00
-      const startDateTimeStr = `${targetDate}T${startTime}:00`;
+      // Backend requires ISO 8601 string aligned to 30-min boundary in Asia/Kolkata (IST: +05:30)
+      const startDateTimeStr = `${targetDate}T${startTime}:00+05:30`;
 
       const payload = {
         court_id: courtId,
         start_time: startDateTimeStr,
-        is_walk_in: isWalkIn,
       };
 
       if (isWalkIn) {

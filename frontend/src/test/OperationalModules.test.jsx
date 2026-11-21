@@ -98,7 +98,7 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
         email: 'rahul@cricket.in',
         phone: '9876543210',
         is_active: true,
-        plan_name: 'Annual Gold Badminton',
+        plan: { name: 'Annual Gold Badminton', court_discount_percent: 20 },
         created_at: '2026-01-01T00:00:00Z',
       },
     ]);
@@ -172,10 +172,11 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
         court: { name: 'Court 1' },
         start_time: '2026-11-27T18:00:00Z',
         end_time: '2026-11-27T20:00:00Z',
-        max_participants: 16,
-        current_participants_count: 12,
-        fee_per_player: '150.00',
+        max_capacity: 16,
+        active_participants_count: 12,
+        fee_per_participant: '150.00',
         status: 'scheduled',
+        participants: [],
       },
     ]);
     courtService.getCourts.mockResolvedValue([]);
@@ -198,10 +199,11 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
         id: 'p1',
         name: 'Yonex Astrox 88D Pro',
         sku: 'YNX-88D',
-        price: 12500,
+        unit_price: 12500,
         current_stock: 5,
         reorder_threshold: 2,
         is_active: true,
+        inventory_tracked: true,
       },
     ]);
     memberService.getMembers.mockResolvedValue([]);
@@ -210,13 +212,14 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
 
     await waitFor(() => {
       expect(screen.getByText('Yonex Astrox 88D Pro')).toBeInTheDocument();
-      expect(screen.getByText(/5 in stock/i)).toBeInTheDocument();
+      expect(screen.getByText(/5 left/i)).toBeInTheDocument();
     });
 
-    const addBtn = screen.getByRole('button', { name: /add to cart/i });
-    fireEvent.click(addBtn);
+    // In POS, the entire product card is the clickable button that adds to cart
+    const productCardBtn = screen.getByRole('button', { name: /Yonex Astrox 88D Pro/i });
+    fireEvent.click(productCardBtn);
 
-    expect(screen.getByText('Current POS Ticket')).toBeInTheDocument();
+    expect(screen.getByText(/Current Sale Ticket/i)).toBeInTheDocument();
   });
 
   // 7. Shop Inventory & Restock
@@ -226,8 +229,10 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
         product_id: 'p1',
         product_name: 'Babolat Tennis Balls (Can of 3)',
         sku: 'BAB-TB-3',
+        module_type: 'shop',
         current_stock: 2,
         reorder_threshold: 10,
+        is_low_stock: true,
       },
     ]);
     shopService.getMovements.mockResolvedValue([]);
@@ -242,7 +247,7 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
     const restockBtn = screen.getByRole('button', { name: /restock/i });
     fireEvent.click(restockBtn);
 
-    expect(screen.getByText(/Restock: Babolat Tennis Balls/i)).toBeInTheDocument();
+    expect(screen.getByText(/Supplier Restock Intake/i)).toBeInTheDocument();
   });
 
   // 8. Cafeteria Kitchen Queue
@@ -250,11 +255,13 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
     cafeteriaService.getOrders.mockResolvedValue([
       {
         id: 'ord-12345678',
+        order_number: 'CAF-2026-0001',
         status: 'pending',
+        customer_type: 'member',
         created_at: new Date().toISOString(),
         member: { full_name: 'Sunil Gavaskar' },
         items: [
-          { id: 'item-1', product_name: 'Electrolyte Smoothie', quantity: 2 },
+          { id: 'item-1', product_name_snapshot: 'Electrolyte Smoothie', quantity: 2 },
         ],
       },
     ]);
@@ -264,7 +271,7 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
     await waitFor(() => {
       expect(screen.getByText('Sunil Gavaskar')).toBeInTheDocument();
       expect(screen.getByText(/Electrolyte Smoothie/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /start preparing/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /preparing/i })).toBeInTheDocument();
     });
   });
 
@@ -300,6 +307,7 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
       {
         id: 'att-1',
         employee: { first_name: 'Kapil', last_name: 'Dev', employee_code: 'EMP-007' },
+        date: '2026-11-22',
         check_in_time: '2026-11-22T08:00:00Z',
         check_out_time: null,
         hours_worked: 4.5,
@@ -311,13 +319,13 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
 
     await waitFor(() => {
       expect(screen.getByText('Kapil Dev')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /audit correct/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /correct/i })).toBeInTheDocument();
     });
 
-    const editBtn = screen.getByRole('button', { name: /audit correct/i });
+    const editBtn = screen.getByRole('button', { name: /correct/i });
     fireEvent.click(editBtn);
 
-    expect(screen.getByText(/Correction Reason/i)).toBeInTheDocument();
+    expect(screen.getByText(/HR Attendance Punch Correction/i)).toBeInTheDocument();
   });
 
   // 11. HR Leave Applications & Review
@@ -338,9 +346,14 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
 
     await waitFor(() => {
       expect(screen.getByText('Sachin Tendulkar')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /reject/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /review/i })).toBeInTheDocument();
     });
+
+    const reviewBtn = screen.getByRole('button', { name: /review/i });
+    fireEvent.click(reviewBtn);
+
+    expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reject/i })).toBeInTheDocument();
   });
 
   // 12. HR Monthly Payroll Runs & Irreversible Lock Dialog
@@ -351,24 +364,49 @@ describe('Milestone H5 & H6: Operational Modules Unit & Integration Tests', () =
         period_name: 'November 2026',
         start_date: '2026-11-01',
         end_date: '2026-11-30',
-        is_processed: false,
+        is_closed: false,
       },
     ]);
     payrollService.getRuns.mockResolvedValue([
       {
         id: 'run-1',
-        period_id: 'per-1',
+        run_number: 'PAY-2026-11',
+        payroll_period_id: 'per-1',
         status: 'under_review',
         total_gross: 250000,
         total_deductions: 25000,
         total_net: 225000,
+        created_at: '2026-11-22T00:00:00Z',
       },
     ]);
-    payrollService.getRunEntries.mockResolvedValue([]);
+    payrollService.getRunById.mockResolvedValue({
+      id: 'run-1',
+      run_number: 'PAY-2026-11',
+      payroll_period_id: 'per-1',
+      status: 'under_review',
+      total_gross: 250000,
+      total_deductions: 25000,
+      total_net: 225000,
+      created_at: '2026-11-22T00:00:00Z',
+      entries: [
+        {
+          id: 'ent-1',
+          employee_name_snapshot: 'Sunil Gavaskar',
+          employee_code_snapshot: 'EMP-002',
+          gross_earnings: 120000,
+          total_deductions: 12000,
+          net_payable: 108000,
+          amount_disbursed: 0,
+          payment_status: 'pending',
+          components: [],
+        },
+      ],
+    });
 
     renderWithProviders(<PayrollPage />);
 
     await waitFor(() => {
+      expect(screen.getByText('PAY-2026-11')).toBeInTheDocument();
       expect(screen.getAllByText(/under_review/i).length).toBeGreaterThanOrEqual(1);
     });
 

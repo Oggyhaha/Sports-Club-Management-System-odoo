@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShoppingBag, Plus, RefreshCw, FolderPlus } from 'lucide-react';
+import { ShoppingBag, Plus, RefreshCw, FolderPlus, Edit3, Lock } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -22,10 +22,11 @@ export const ShopProductsPage = () => {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [price, setPrice] = useState('500.00');
+  const [unitPrice, setUnitPrice] = useState('500.00');
   const [taxRate, setTaxRate] = useState('18.0');
   const [initialStock, setInitialStock] = useState(20);
   const [reorderThreshold, setReorderThreshold] = useState(5);
+  const [discountEligible, setDiscountEligible] = useState(true);
   const [isActive, setIsActive] = useState(true);
   const [submittingProd, setSubmittingProd] = useState(false);
   const [prodError, setProdError] = useState('');
@@ -39,7 +40,9 @@ export const ShopProductsPage = () => {
 
   const { roles } = useAuth();
   const { showToast } = useToast();
-  const canManage = roles.includes(ROLES.OWNER) || roles.includes(ROLES.SHOP_STAFF);
+  const isOwner = roles.includes(ROLES.OWNER);
+  const isShopStaff = roles.includes(ROLES.SHOP_STAFF);
+  const canManage = isOwner || isShopStaff;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -66,10 +69,11 @@ export const ShopProductsPage = () => {
     setName('');
     setSku('');
     setCategoryId(categories[0]?.id || '');
-    setPrice('500.00');
+    setUnitPrice('500.00');
     setTaxRate('18.0');
     setInitialStock(20);
     setReorderThreshold(5);
+    setDiscountEligible(true);
     setIsActive(true);
     setProdError('');
     setIsProdModalOpen(true);
@@ -78,11 +82,12 @@ export const ShopProductsPage = () => {
   const openEditProduct = (prod) => {
     setEditingProduct(prod);
     setName(prod.name);
-    setSku(prod.sku);
+    setSku(prod.sku || '');
     setCategoryId(prod.category_id || (categories[0]?.id ?? ''));
-    setPrice(String(prod.price));
-    setTaxRate(String(prod.tax_rate));
-    setReorderThreshold(prod.reorder_threshold);
+    setUnitPrice(String(prod.unit_price ?? prod.price ?? '0.00'));
+    setTaxRate(String(prod.tax_rate ?? '0.00'));
+    setReorderThreshold(prod.reorder_threshold ?? 5);
+    setDiscountEligible(prod.discount_eligible ?? true);
     setIsActive(prod.is_active);
     setProdError('');
     setIsProdModalOpen(true);
@@ -91,36 +96,54 @@ export const ShopProductsPage = () => {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     if (!name || !sku || !categoryId) {
-      setProdError('Name, SKU, and category are required.');
+      setProdError('Product name, SKU, and category are required.');
       return;
     }
     setSubmittingProd(true);
     setProdError('');
 
     try {
-      const payload = {
-        name,
-        sku: sku.toUpperCase().trim(),
-        category_id: categoryId,
-        price,
-        tax_rate: taxRate,
-        reorder_threshold: Number(reorderThreshold),
-        is_active: isActive,
-      };
-
       if (editingProduct) {
-        await shopService.updateProduct(editingProduct.id, payload);
-        showToast?.('Product updated successfully!', 'success');
+        // ProductUpdate schema
+        // Field-level authorization: unit_price and tax_rate are strictly owner-only
+        const updatePayload = {
+          name,
+          sku: sku.toUpperCase().trim(),
+          category_id: categoryId,
+          reorder_threshold: Number(reorderThreshold),
+          discount_eligible: discountEligible,
+          is_active: isActive,
+        };
+
+        if (isOwner) {
+          updatePayload.unit_price = unitPrice;
+          updatePayload.tax_rate = taxRate;
+        }
+
+        await shopService.updateProduct(editingProduct.id, updatePayload);
+        showToast?.('Product details updated successfully!', 'success');
       } else {
-        payload.initial_stock = Number(initialStock);
-        payload.module_type = 'shop';
-        await shopService.createProduct(payload);
-        showToast?.('Product published to shop catalog!', 'success');
+        // ProductCreate schema
+        const createPayload = {
+          name,
+          sku: sku.toUpperCase().trim(),
+          category_id: categoryId,
+          unit_price: unitPrice,
+          tax_rate: taxRate,
+          initial_stock: Number(initialStock),
+          reorder_threshold: Number(reorderThreshold),
+          discount_eligible: discountEligible,
+          is_active: isActive,
+          module_type: 'shop',
+        };
+
+        await shopService.createProduct(createPayload);
+        showToast?.('Product registered into shop catalog!', 'success');
       }
       setIsProdModalOpen(false);
       loadData();
     } catch (err) {
-      setProdError(err.response?.data?.detail || 'Failed to save product.');
+      setProdError(err.response?.data?.detail || err.message || 'Failed to save product.');
     } finally {
       setSubmittingProd(false);
     }
@@ -138,7 +161,7 @@ export const ShopProductsPage = () => {
     try {
       await shopService.createCategory({
         name: catName,
-        description: catDesc,
+        description: catDesc || undefined,
         module_type: 'shop',
       });
       showToast?.('New merchandise category created!', 'success');
@@ -147,7 +170,7 @@ export const ShopProductsPage = () => {
       setCatDesc('');
       loadData();
     } catch (err) {
-      setCatError(err.response?.data?.detail || 'Failed to create category.');
+      setCatError(err.response?.data?.detail || err.message || 'Failed to create category.');
     } finally {
       setSubmittingCat(false);
     }
@@ -156,8 +179,8 @@ export const ShopProductsPage = () => {
   return (
     <div className="space-y-6 pb-12">
       <PageHeader
-        title="Merchandise & Product Catalog"
-        subtitle="Manage retail inventory specifications, SKUs, tax percentages, and stock reorder triggers."
+        title="Pro-Shop Catalog & Merchandise"
+        subtitle="Apparel, rackets, equipment, merchandise categories, and pricing management."
         breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Shop Products' }]}
         actions={
           canManage && (
@@ -176,186 +199,262 @@ export const ShopProductsPage = () => {
                 New Category
               </Button>
               <Button variant="primary" size="sm" onClick={openCreateProduct} leftIcon={Plus}>
-                New Product
+                Add Product
               </Button>
             </div>
           )
         }
       />
 
-      <Card noPadding>
-        {loading ? (
-          <div className="p-12 text-center text-slate-400 text-xs">Loading product catalog...</div>
-        ) : products.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-xs">
-            No products defined in catalog. Click "New Product" to register merchandise.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="py-2.5 px-4">Item Name</th>
-                  <th className="py-2.5 px-4">SKU</th>
-                  <th className="py-2.5 px-4">Category</th>
-                  <th className="py-2.5 px-4 text-right">Retail Price</th>
-                  <th className="py-2.5 px-4 text-right">GST Tax</th>
-                  <th className="py-2.5 px-4 text-right">In Stock</th>
-                  <th className="py-2.5 px-4">Status</th>
-                  <th className="py-2.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/60">
-                    <td className="py-3 px-4 font-semibold text-slate-900">{p.name}</td>
-                    <td className="py-3 px-4 font-mono text-slate-500 text-2xs">{p.sku}</td>
-                    <td className="py-3 px-4 text-slate-600 capitalize">
-                      {p.category?.name || 'General'}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
-                      {formatCurrency(p.price)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-slate-600">
-                      {p.tax_rate}%
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-semibold text-slate-900">
-                      {p.current_stock}
-                    </td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={p.is_active ? 'active' : 'inactive'} />
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      {canManage && (
-                        <Button variant="outline" size="sm" onClick={() => openEditProduct(p)}>
-                          Edit
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <p>Products are categorized for the POS counter. Product pricing and tax rates are owner-governed.</p>
+        <Button variant="outline" size="sm" onClick={loadData} isLoading={loading} leftIcon={RefreshCw}>
+          Refresh
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="p-12 text-center text-slate-400 text-xs">Loading merchandise catalog...</div>
+      ) : products.length === 0 ? (
+        <Card className="text-center py-12 text-slate-500 text-xs">
+          <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          <p>No products found in the catalog.</p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {products.map((p) => {
+            const stock = p.current_stock ?? 0;
+            const isLowStock = stock <= (p.reorder_threshold ?? 5);
+
+            return (
+              <Card key={p.id} className="flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-3xs font-mono font-semibold text-slate-400">SKU: {p.sku || 'N/A'}</span>
+                      <h3 className="font-bold text-slate-900 text-sm mt-0.5">{p.name}</h3>
+                      <p className="text-3xs text-slate-500">{p.category?.name || 'Uncategorized'}</p>
+                    </div>
+                    <StatusBadge status={p.is_active ? 'active' : 'inactive'} />
+                  </div>
+
+                  <div className="mt-4 pb-3 border-b border-slate-100 flex items-baseline justify-between">
+                    <div>
+                      <span className="text-lg font-bold text-slate-900">
+                        {formatCurrency(p.unit_price ?? p.price ?? 0)}
+                      </span>
+                      <span className="text-3xs text-slate-400 ml-1">+{p.tax_rate ?? 0}% GST</span>
+                    </div>
+                    <span className={`text-2xs font-mono font-semibold px-2 py-0.5 rounded ${
+                      stock === 0
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : isLowStock
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    }`}>
+                      {stock} in stock
+                    </span>
+                  </div>
+
+                  <div className="mt-2 text-3xs text-slate-400 flex items-center justify-between">
+                    <span>Reorder at: {p.reorder_threshold ?? 5} units</span>
+                    <span>{p.discount_eligible ? 'Member Discount Eligible' : 'Standard Price'}</span>
+                  </div>
+                </div>
+
+                {canManage && (
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => openEditProduct(p)} leftIcon={Edit3}>
+                      Edit Product
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Product Modal */}
       <Modal
         isOpen={isProdModalOpen}
         onClose={() => setIsProdModalOpen(false)}
-        title={editingProduct ? 'Edit Merchandise Product' : 'Register New Merchandise'}
-        subtitle="Manage product specifications and inventory parameters"
+        title={editingProduct ? 'Edit Product Details' : 'Register New Product'}
+        subtitle={
+          editingProduct && !isOwner
+            ? 'Staff notice: Product pricing and tax rates are restricted to Club Owners.'
+            : 'Configure merchandise details and inventory parameters'
+        }
       >
         <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
           {prodError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-medium">
               {prodError}
             </div>
           )}
 
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">Product Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Yonex Nanoflare 800 Racket"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+              required
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Product Name *</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Yonex Pro Racket"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-slate-700 mb-1">Unique SKU *</label>
+              <label className="block font-medium text-slate-700 mb-1">SKU Code *</label>
               <input
                 type="text"
                 value={sku}
-                onChange={(e) => setSku(e.target.value.toUpperCase())}
-                placeholder="e.g. YON-RACK-01"
+                onChange={(e) => setSku(e.target.value)}
+                placeholder="e.g. RACKET-YON-800"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Category *</label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
-              required
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Category *</label>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
+                required
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Retail Price (INR) *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-medium text-slate-700">Unit Price (INR) *</label>
+                {editingProduct && !isOwner && (
+                  <span className="flex items-center gap-0.5 text-3xs text-amber-700 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Owner Only
+                  </span>
+                )}
+              </div>
               <input
-                type="text"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                type="number"
+                step="0.01"
+                min="0"
+                value={unitPrice}
+                onChange={(e) => setUnitPrice(e.target.value)}
+                disabled={editingProduct && !isOwner}
+                className={`w-full px-3 py-2 border rounded-lg font-mono ${
+                  editingProduct && !isOwner
+                    ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed'
+                    : 'bg-white text-slate-900 border-slate-300'
+                }`}
                 required
               />
             </div>
+
             <div>
-              <label className="block font-medium text-slate-700 mb-1">GST Tax Rate % *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-medium text-slate-700">GST Tax Rate (%) *</label>
+                {editingProduct && !isOwner && (
+                  <span className="flex items-center gap-0.5 text-3xs text-amber-700 font-semibold">
+                    <Lock className="w-2.5 h-2.5" /> Owner Only
+                  </span>
+                )}
+              </div>
               <input
-                type="text"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
                 value={taxRate}
                 onChange={(e) => setTaxRate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                disabled={editingProduct && !isOwner}
+                className={`w-full px-3 py-2 border rounded-lg font-mono ${
+                  editingProduct && !isOwner
+                    ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed'
+                    : 'bg-white text-slate-900 border-slate-300'
+                }`}
                 required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {!editingProduct && (
+          {!editingProduct ? (
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Initial Opening Stock *</label>
+                <label className="block font-medium text-slate-700 mb-1">Initial Stock Count *</label>
                 <input
                   type="number"
                   min="0"
                   value={initialStock}
                   onChange={(e) => setInitialStock(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
                   required
                 />
               </div>
-            )}
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Low-Stock Alert Threshold *</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={reorderThreshold}
+                  onChange={(e) => setReorderThreshold(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
+                  required
+                />
+              </div>
+            </div>
+          ) : (
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Reorder Threshold *</label>
+              <label className="block font-medium text-slate-700 mb-1">Low-Stock Alert Threshold</label>
               <input
                 type="number"
-                min="1"
+                min="0"
                 value={reorderThreshold}
                 onChange={(e) => setReorderThreshold(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
                 required
               />
+              <p className="mt-1 text-3xs text-slate-400">
+                Stock changes are disabled here. To adjust stock levels, use the dedicated Inventory Management tab.
+              </p>
             </div>
-          </div>
+          )}
 
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="prod-is-active"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-            />
-            <label htmlFor="prod-is-active" className="text-slate-700 font-medium cursor-pointer">
-              Product is active and visible at POS counter
-            </label>
+          <div className="flex items-center gap-4 pt-1">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="discountEligible"
+                checked={discountEligible}
+                onChange={(e) => setDiscountEligible(e.target.checked)}
+                className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+              />
+              <label htmlFor="discountEligible" className="text-slate-700 font-medium cursor-pointer">
+                Member Discount Eligible
+              </label>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                id="isProdActive"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+              />
+              <label htmlFor="isProdActive" className="text-slate-700 font-medium cursor-pointer">
+                Active for POS Sales
+              </label>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -363,7 +462,7 @@ export const ShopProductsPage = () => {
               Cancel
             </Button>
             <Button variant="primary" size="sm" type="submit" isLoading={submittingProd}>
-              {editingProduct ? 'Update Product' : 'Save Product'}
+              {editingProduct ? 'Save Changes' : 'Register Product'}
             </Button>
           </div>
         </form>
@@ -373,35 +472,35 @@ export const ShopProductsPage = () => {
       <Modal
         isOpen={isCatModalOpen}
         onClose={() => setIsCatModalOpen(false)}
-        title="Create Merchandise Category"
-        subtitle="Group products into organized shop categories"
+        title="Add Merchandise Category"
+        subtitle="Create a new catalog category for shop inventory"
       >
         <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
           {catError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-medium">
               {catError}
             </div>
           )}
 
           <div>
-            <label className="block font-medium text-slate-700 mb-1">Category Title *</label>
+            <label className="block font-medium text-slate-700 mb-1">Category Name *</label>
             <input
               type="text"
               value={catName}
               onChange={(e) => setCatName(e.target.value)}
-              placeholder="e.g. Rackets & Grips"
+              placeholder="e.g. Footwear, Rackets, Grip Tape"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
               required
             />
           </div>
 
           <div>
-            <label className="block font-medium text-slate-700 mb-1">Description</label>
+            <label className="block font-medium text-slate-700 mb-1">Description (Optional)</label>
             <textarea
-              rows={2}
               value={catDesc}
               onChange={(e) => setCatDesc(e.target.value)}
-              placeholder="Badminton and tennis equipment."
+              placeholder="Merchandise group notes..."
+              rows={2}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
             />
           </div>

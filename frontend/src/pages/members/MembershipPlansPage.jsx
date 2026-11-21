@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Award, Plus, RefreshCw, CheckCircle, Percent } from 'lucide-react';
+import { Award, Plus, RefreshCw, CheckCircle, Percent, Edit3 } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -20,9 +20,11 @@ export const MembershipPlansPage = () => {
   const [editingPlan, setEditingPlan] = useState(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [durationMonths, setDurationMonths] = useState(1);
-  const [price, setPrice] = useState('1500.00');
+  const [durationDays, setDurationDays] = useState(30);
+  const [monthlyFee, setMonthlyFee] = useState('1500.00');
   const [courtDiscountPercent, setCourtDiscountPercent] = useState('10.0');
+  const [shopDiscountPercent, setShopDiscountPercent] = useState('5.0');
+  const [barDiscountPercent, setBarDiscountPercent] = useState('5.0');
   const [isActive, setIsActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -51,9 +53,11 @@ export const MembershipPlansPage = () => {
     setEditingPlan(null);
     setName('');
     setDescription('');
-    setDurationMonths(1);
-    setPrice('1500.00');
+    setDurationDays(30);
+    setMonthlyFee('1500.00');
     setCourtDiscountPercent('10.0');
+    setShopDiscountPercent('5.0');
+    setBarDiscountPercent('5.0');
     setIsActive(true);
     setErrorMsg('');
     setIsModalOpen(true);
@@ -63,9 +67,11 @@ export const MembershipPlansPage = () => {
     setEditingPlan(plan);
     setName(plan.name);
     setDescription(plan.description || '');
-    setDurationMonths(plan.duration_months);
-    setPrice(String(plan.price));
+    setDurationDays(plan.duration_days || 30);
+    setMonthlyFee(String(plan.monthly_fee));
     setCourtDiscountPercent(String(plan.court_discount_percent));
+    setShopDiscountPercent(String(plan.shop_discount_percent || 0));
+    setBarDiscountPercent(String(plan.bar_discount_percent || 0));
     setIsActive(plan.is_active);
     setErrorMsg('');
     setIsModalOpen(true);
@@ -79,10 +85,12 @@ export const MembershipPlansPage = () => {
     try {
       const payload = {
         name,
-        description,
-        duration_months: Number(durationMonths),
-        price: price,
+        description: description || undefined,
+        duration_days: Number(durationDays),
+        monthly_fee: monthlyFee,
         court_discount_percent: courtDiscountPercent,
+        shop_discount_percent: shopDiscountPercent,
+        bar_discount_percent: barDiscountPercent,
         is_active: isActive,
       };
 
@@ -96,7 +104,7 @@ export const MembershipPlansPage = () => {
       setIsModalOpen(false);
       loadPlans();
     } catch (err) {
-      setErrorMsg(err.response?.data?.detail || 'Failed to save membership plan.');
+      setErrorMsg(err.response?.data?.detail || err.message || 'Failed to save membership plan.');
     } finally {
       setSubmitting(false);
     }
@@ -106,79 +114,94 @@ export const MembershipPlansPage = () => {
     <div className="space-y-6 pb-12">
       <PageHeader
         title="Membership Plans"
-        subtitle="Manage club membership tiers, duration windows, subscription fees, and court booking discounts."
+        subtitle="Manage membership tiers, tiered discounts for courts, shop and cafeteria, and subscription durations."
         breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Membership Plans' }]}
         actions={
           isOwner && (
             <Button variant="primary" size="sm" onClick={openCreateModal} leftIcon={Plus}>
-              Create New Plan
+              New Plan Tier
             </Button>
           )
         }
       />
 
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <p>Active membership tiers determine member booking discounts and priority access.</p>
+        <Button variant="outline" size="sm" onClick={loadPlans} isLoading={loading} leftIcon={RefreshCw}>
+          Refresh
+        </Button>
+      </div>
+
       {loading ? (
-        <div className="p-12 text-center text-slate-400 text-xs">Loading plans catalog...</div>
+        <div className="p-12 text-center text-slate-400 text-xs">Loading membership plans...</div>
       ) : plans.length === 0 ? (
-        <div className="p-12 text-center text-slate-500 text-xs bg-white rounded-xl border border-slate-200">
-          No membership plans defined. Click "Create New Plan" to configure membership tiers.
-        </div>
+        <Card className="text-center py-12 text-slate-500 text-xs">
+          <Award className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          <p>No membership plans found.</p>
+          {isOwner && (
+            <Button variant="primary" size="sm" className="mt-4" onClick={openCreateModal}>
+              Create First Plan
+            </Button>
+          )}
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className="bg-white rounded-xl border border-slate-200 shadow-2xs hover:shadow-sm transition-all duration-150 p-6 flex flex-col justify-between"
-            >
+            <Card key={plan.id} className="relative flex flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-100">
+                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold">
                       <Award className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-slate-900">{plan.name}</h3>
-                      <p className="text-2xs text-slate-400 font-mono">
-                        {plan.duration_months} {plan.duration_months === 1 ? 'Month' : 'Months'} Validity
-                      </p>
+                      <h3 className="font-semibold text-slate-900 text-sm">{plan.name}</h3>
+                      <p className="text-3xs text-slate-400">{plan.duration_days || 30} Days Duration</p>
                     </div>
                   </div>
                   <StatusBadge status={plan.is_active ? 'active' : 'inactive'} />
                 </div>
 
-                <div className="mt-4 pb-4 border-b border-slate-100">
-                  <span className="text-2xl font-bold font-mono text-slate-900">
-                    {formatCurrency(plan.price)}
-                  </span>
-                  <span className="text-xs text-slate-500 ml-1">/ subscription</span>
+                <div className="mt-4 pb-3 border-b border-slate-100">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-slate-900">{formatCurrency(plan.monthly_fee)}</span>
+                    <span className="text-3xs text-slate-400">/ subscription period</span>
+                  </div>
+                  {plan.description && (
+                    <p className="mt-2 text-xs text-slate-600 line-clamp-2">{plan.description}</p>
+                  )}
                 </div>
 
-                <div className="mt-4 space-y-2 text-xs">
+                <div className="mt-3 space-y-1.5 text-xs">
                   <div className="flex items-center justify-between text-slate-700">
                     <span className="flex items-center gap-1.5">
                       <Percent className="w-3.5 h-3.5 text-sky-600" /> Court Booking Discount
                     </span>
-                    <span className="font-bold text-sky-900 font-mono">
-                      {plan.court_discount_percent}% OFF
-                    </span>
+                    <span className="font-semibold text-sky-700">{plan.court_discount_percent}%</span>
                   </div>
-
-                  {plan.description && (
-                    <p className="text-2xs text-slate-500 leading-relaxed pt-2">
-                      {plan.description}
-                    </p>
-                  )}
+                  <div className="flex items-center justify-between text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <Percent className="w-3.5 h-3.5 text-emerald-600" /> Pro-Shop Discount
+                    </span>
+                    <span className="font-semibold text-emerald-700">{plan.shop_discount_percent || 0}%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <Percent className="w-3.5 h-3.5 text-amber-600" /> Cafeteria Discount
+                    </span>
+                    <span className="font-semibold text-amber-700">{plan.bar_discount_percent || 0}%</span>
+                  </div>
                 </div>
               </div>
 
               {isOwner && (
-                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end">
-                  <Button variant="outline" size="sm" onClick={() => openEditModal(plan)}>
-                    Edit Plan
+                <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => openEditModal(plan)} leftIcon={Edit3}>
+                    Edit Tier
                   </Button>
                 </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}
@@ -188,22 +211,22 @@ export const MembershipPlansPage = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingPlan ? 'Edit Membership Plan' : 'Create Membership Plan'}
-        subtitle="Configure pricing and court reservation discounts (Owner Restricted)"
+        subtitle="Configure tier duration, monthly fee and percentage discounts"
       >
         <form onSubmit={handleSavePlan} className="space-y-4 text-xs">
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-medium">
               {errorMsg}
             </div>
           )}
 
           <div>
-            <label className="block font-medium text-slate-700 mb-1">Plan Title *</label>
+            <label className="block font-medium text-slate-700 mb-1">Plan Tier Name *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Gold Annual Membership"
+              placeholder="e.g. Gold Tier, Platinum, Junior"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
               required
             />
@@ -211,63 +234,91 @@ export const MembershipPlansPage = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Duration (Months) *</label>
+              <label className="block font-medium text-slate-700 mb-1">Plan Fee (INR) *</label>
               <input
                 type="number"
-                min="1"
-                max="36"
-                value={durationMonths}
-                onChange={(e) => setDurationMonths(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                step="0.01"
+                min="0"
+                value={monthlyFee}
+                onChange={(e) => setMonthlyFee(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
                 required
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Subscription Price (INR) *</label>
+              <label className="block font-medium text-slate-700 mb-1">Duration (Days) *</label>
               <input
-                type="text"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="1500.00"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
+                type="number"
+                min="1"
+                value={durationDays}
+                onChange={(e) => setDurationDays(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Court Discount Percentage (0–100%) *</label>
-            <input
-              type="text"
-              value={courtDiscountPercent}
-              onChange={(e) => setCourtDiscountPercent(e.target.value)}
-              placeholder="15.0"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
-              required
-            />
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Court Disc (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={courtDiscountPercent}
+                onChange={(e) => setCourtDiscountPercent(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Shop Disc (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={shopDiscountPercent}
+                onChange={(e) => setShopDiscountPercent(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Café Disc (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={barDiscountPercent}
+                onChange={(e) => setBarDiscountPercent(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block font-medium text-slate-700 mb-1">Plan Description</label>
+            <label className="block font-medium text-slate-700 mb-1">Description / Perks</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Full access to badminton and squash courts with weekend guest passes."
-              rows={3}
+              placeholder="e.g. Unlimited weekend access, 10% court discount, free cafeteria drinks."
+              rows={2}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
             />
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              id="plan-is-active"
+              id="isActive"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
               className="rounded border-slate-300 text-sky-600 focus:ring-sky-500"
             />
-            <label htmlFor="plan-is-active" className="text-slate-700 font-medium cursor-pointer">
-              Active plan available for member enrollment
+            <label htmlFor="isActive" className="text-slate-700 font-medium cursor-pointer">
+              Active Tier (Available for member subscription purchase)
             </label>
           </div>
 
@@ -276,7 +327,7 @@ export const MembershipPlansPage = () => {
               Cancel
             </Button>
             <Button variant="primary" size="sm" type="submit" isLoading={submitting}>
-              {editingPlan ? 'Update Plan' : 'Publish Plan'}
+              {editingPlan ? 'Update Plan' : 'Save & Publish'}
             </Button>
           </div>
         </form>
