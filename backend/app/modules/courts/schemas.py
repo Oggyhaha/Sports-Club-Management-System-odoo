@@ -22,7 +22,12 @@ class CourtBase(BaseModel):
     hourly_rate: Decimal = Field(
         ...,
         ge=0,
-        description="Standard non-member hourly booking rate in USD",
+        description="Standard member base hourly booking rate in USD",
+    )
+    walk_in_rate: Optional[Decimal] = Field(
+        None,
+        ge=0,
+        description="Non-member walk-in hourly rate in USD (defaults to hourly_rate if omitted)",
     )
     is_active: bool = Field(
         True,
@@ -38,6 +43,7 @@ class CourtUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=50)
     sport_type: Optional[str] = Field(None, min_length=2, max_length=30)
     hourly_rate: Optional[Decimal] = Field(None, ge=0)
+    walk_in_rate: Optional[Decimal] = Field(None, ge=0)
     is_active: Optional[bool] = None
 
 

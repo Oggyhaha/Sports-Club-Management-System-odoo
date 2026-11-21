@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.modules.bookings.models import Booking
+    from app.modules.bookings.models import Booking, SocialPlayParticipant
     from app.modules.auth.models import User
 
 
@@ -161,6 +161,10 @@ class Member(Base):
         back_populates="member",
         cascade="all, delete-orphan",
         order_by="desc(MemberSubscription.created_at)",
+    )
+    social_play_participations: Mapped[List["SocialPlayParticipant"]] = relationship(
+        back_populates="member",
+        cascade="all, delete-orphan",
     )
 
 

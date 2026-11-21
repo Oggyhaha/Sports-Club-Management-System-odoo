@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.modules.bookings.models import Booking
+    from app.modules.bookings.models import Booking, SocialPlaySession
 
 
 class Court(Base):
@@ -56,8 +56,12 @@ class Court(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    # Relationship to bookings made on this court
+    # Relationships
     bookings: Mapped[List["Booking"]] = relationship(
+        back_populates="court",
+        cascade="all, delete-orphan",
+    )
+    social_sessions: Mapped[List["SocialPlaySession"]] = relationship(
         back_populates="court",
         cascade="all, delete-orphan",
     )

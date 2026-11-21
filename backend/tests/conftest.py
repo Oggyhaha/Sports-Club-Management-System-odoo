@@ -48,6 +48,8 @@ def clean_test_artifacts():
     yield
     db = TestingSessionLocal()
     try:
+        db.execute(text("DELETE FROM social_play_participants"))
+        db.execute(text("DELETE FROM social_play_sessions"))
         db.execute(text("DELETE FROM member_subscriptions"))
         db.execute(text("DELETE FROM bookings"))
         db.execute(text("DELETE FROM members"))

@@ -5,7 +5,7 @@ from app.core.database import Base
 from app.modules.auth.models import Role, UserRole, User, RoleEnum, Invitation
 from app.modules.members.models import MembershipPlan, Member, MemberSubscription
 from app.modules.courts.models import Court
-from app.modules.bookings.models import Booking
+from app.modules.bookings.models import Booking, SocialPlaySession, SocialPlayParticipant
 
 __all__ = [
     "Base",
@@ -19,4 +19,6 @@ __all__ = [
     "MemberSubscription",
     "Court",
     "Booking",
+    "SocialPlaySession",
+    "SocialPlayParticipant",
 ]

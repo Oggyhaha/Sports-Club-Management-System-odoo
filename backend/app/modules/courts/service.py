@@ -65,6 +65,7 @@ def create_court(db: Session, court_in: CourtCreate) -> Court:
         name=court_name,
         sport_type=court_in.sport_type.strip().lower(),
         hourly_rate=court_in.hourly_rate,
+        walk_in_rate=court_in.walk_in_rate,
         is_active=court_in.is_active,
     )
 
@@ -97,6 +98,9 @@ def update_court(db: Session, court_id: UUID, court_in: CourtUpdate) -> Court:
 
     if "hourly_rate" in update_data and update_data["hourly_rate"] is not None:
         court.hourly_rate = update_data["hourly_rate"]
+
+    if "walk_in_rate" in update_data:
+        court.walk_in_rate = update_data["walk_in_rate"]
 
     if "is_active" in update_data and update_data["is_active"] is not None:
         court.is_active = update_data["is_active"]
