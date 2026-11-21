@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ==========================================
@@ -70,7 +70,7 @@ class EmployeeBase(BaseModel):
     employee_code: str = Field(..., min_length=2, max_length=30)
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50)
-    work_email: EmailStr
+    work_email: str = Field(..., pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$", max_length=120)
     phone: Optional[str] = Field(None, max_length=20)
     joining_date: date
     employment_status: str = Field("active", max_length=20)
