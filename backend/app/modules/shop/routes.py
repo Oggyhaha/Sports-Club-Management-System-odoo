@@ -131,14 +131,23 @@ def create_product(
 @router.put(
     "/products/{product_id}",
     response_model=ProductAdminResponse,
-    dependencies=[Depends(require_roles([RoleEnum.OWNER.value, RoleEnum.SHOP_STAFF.value]))],
 )
 def update_product(
     product_id: UUID,
     prod_in: ProductUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles([RoleEnum.OWNER.value, RoleEnum.SHOP_STAFF.value])),
 ):
-    """Staff/Owner: modify product details, price, or tax rate."""
+    """
+    Staff/Owner: modify product details.
+    Restricts price and tax modifications strictly to Owner.
+    """
+    user_roles = [r.name for r in current_user.roles]
+    if (prod_in.unit_price is not None or prod_in.tax_rate is not None) and RoleEnum.OWNER.value not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only club owners are permitted to modify product pricing or tax rates.",
+        )
     p = service.update_product(db, product_id, prod_in)
     resp = ProductAdminResponse.model_validate(p)
     resp.is_in_stock = (p.current_stock > 0) if p.inventory_tracked else True

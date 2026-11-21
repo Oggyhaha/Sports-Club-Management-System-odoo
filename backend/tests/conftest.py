@@ -48,6 +48,14 @@ def clean_test_artifacts():
     yield
     db = TestingSessionLocal()
     try:
+        db.execute(text("DELETE FROM payment_allocation_reversals"))
+        db.execute(text("DELETE FROM payment_allocations"))
+        db.execute(text("DELETE FROM payment_refunds"))
+        db.execute(text("DELETE FROM receipts"))
+        db.execute(text("DELETE FROM invoice_items"))
+        db.execute(text("DELETE FROM invoices"))
+        db.execute(text("DELETE FROM payments"))
+        db.execute(text("DELETE FROM business_clients"))
         db.execute(text("DELETE FROM order_status_history"))
         db.execute(text("DELETE FROM order_items"))
         db.execute(text("DELETE FROM inventory_movements"))
@@ -238,4 +246,35 @@ def hr_staff_user():
 @pytest.fixture
 def hr_staff_headers(hr_staff_user):
     token = create_access_token(user_id=hr_staff_user.id, token_version=hr_staff_user.token_version)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def business_client_user():
+    db = TestingSessionLocal()
+    try:
+        user = User(
+            email=f"biz_client_{uuid.uuid4().hex[:6]}@example.com",
+            hashed_password=hash_password("BizPass123!"),
+            full_name="Test Corporate Admin",
+            is_active=True,
+            token_version=1,
+        )
+        biz_role = db.query(Role).filter(Role.name == RoleEnum.BUSINESS_CLIENT.value).first()
+        if not biz_role:
+            biz_role = Role(name=RoleEnum.BUSINESS_CLIENT.value, description="Business Client")
+            db.add(biz_role)
+            db.flush()
+        user.roles.append(biz_role)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def business_client_headers(business_client_user):
+    token = create_access_token(user_id=business_client_user.id, token_version=business_client_user.token_version)
     return {"Authorization": f"Bearer {token}"}

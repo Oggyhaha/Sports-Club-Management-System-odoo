@@ -7,6 +7,13 @@ from app.modules.courts.routes import router as courts_router
 from app.modules.bookings.routes import router as bookings_router
 from app.modules.shop.routes import router as shop_router
 from app.modules.cafeteria.routes import router as cafeteria_router
+from app.modules.finance.routes import (
+    business_clients_router,
+    invoices_router,
+    payments_router,
+    receipts_router,
+    allocations_router,
+)
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -34,6 +41,11 @@ app.include_router(courts_router, prefix=settings.API_V1_PREFIX)
 app.include_router(bookings_router, prefix=settings.API_V1_PREFIX)
 app.include_router(shop_router, prefix=settings.API_V1_PREFIX)
 app.include_router(cafeteria_router, prefix=settings.API_V1_PREFIX)
+app.include_router(business_clients_router, prefix=settings.API_V1_PREFIX)
+app.include_router(invoices_router, prefix=settings.API_V1_PREFIX)
+app.include_router(payments_router, prefix=settings.API_V1_PREFIX)
+app.include_router(receipts_router, prefix=settings.API_V1_PREFIX)
+app.include_router(allocations_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/", tags=["Root"])

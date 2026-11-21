@@ -14,6 +14,16 @@ from app.modules.shop.models import (
     InventoryMovement,
     OrderStatusHistory,
 )
+from app.modules.finance.models import (
+    BusinessClient,
+    Invoice,
+    InvoiceItem,
+    Payment,
+    PaymentAllocation,
+    PaymentAllocationReversal,
+    PaymentReceipt,
+    PaymentRefund,
+)
 
 __all__ = [
     "Base",
@@ -35,4 +45,12 @@ __all__ = [
     "OrderItem",
     "InventoryMovement",
     "OrderStatusHistory",
+    "BusinessClient",
+    "Invoice",
+    "InvoiceItem",
+    "Payment",
+    "PaymentAllocation",
+    "PaymentAllocationReversal",
+    "PaymentReceipt",
+    "PaymentRefund",
 ]
