@@ -48,11 +48,16 @@ def clean_test_artifacts():
     yield
     db = TestingSessionLocal()
     try:
+        db.execute(text("DELETE FROM member_subscriptions"))
         db.execute(text("DELETE FROM bookings"))
         db.execute(text("DELETE FROM members"))
         db.execute(text("DELETE FROM invitations"))
         db.execute(text("DELETE FROM user_roles"))
         db.execute(text("DELETE FROM users"))
+        # Keep canonical seeded plans in test database
+        db.execute(
+            text("DELETE FROM membership_plans WHERE name NOT IN ('Gold', 'Silver', 'Junior')")
+        )
         # Keep canonical seeded roles in test database
         db.execute(
             text("DELETE FROM roles WHERE name NOT IN ('owner', 'receptionist', 'member', 'shop_staff', 'hr_staff', 'business_client')")
@@ -132,4 +137,35 @@ def receptionist_user():
 @pytest.fixture
 def receptionist_headers(receptionist_user):
     token = create_access_token(user_id=receptionist_user.id, token_version=receptionist_user.token_version)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def member_user():
+    db = TestingSessionLocal()
+    try:
+        user = User(
+            email=f"member_{uuid.uuid4().hex[:6]}@example.com",
+            hashed_password=hash_password("MemberPass123!"),
+            full_name="Test Member",
+            is_active=True,
+            token_version=1,
+        )
+        mem_role = db.query(Role).filter(Role.name == RoleEnum.MEMBER.value).first()
+        if not mem_role:
+            mem_role = Role(name=RoleEnum.MEMBER.value, description="Member")
+            db.add(mem_role)
+            db.flush()
+        user.roles.append(mem_role)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def member_headers(member_user):
+    token = create_access_token(user_id=member_user.id, token_version=member_user.token_version)
     return {"Authorization": f"Bearer {token}"}
