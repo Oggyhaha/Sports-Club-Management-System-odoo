@@ -6,7 +6,7 @@ import apiClient from '../lib/axios';
 export const bookingService = {
   // Availability
   async checkAvailability(targetDate, courtId = null) {
-    const params = { target_date: targetDate };
+    const params = { date: targetDate, target_date: targetDate };
     if (courtId) params.court_id = courtId;
     const res = await apiClient.get('/bookings/availability', { params });
     return res.data;

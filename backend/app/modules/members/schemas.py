@@ -119,6 +119,12 @@ class SubscriptionChangePlanRequest(BaseModel):
         return normalized
 
 
+class OnlineSubscriptionPurchaseRequest(BaseModel):
+    plan_id: UUID = Field(..., description="UUID of the membership plan to purchase")
+    payment_method: str = Field("mock_card", description="Payment method: mock_card, mock_upi, mock_netbanking")
+    payment_reference: Optional[str] = Field(None, description="Mock transaction ID / reference")
+
+
 # ---------------------------------------------------------
 # Member Schemas
 # ---------------------------------------------------------

@@ -16,6 +16,7 @@ from app.modules.members.schemas import (
     MembershipPlanCreate,
     MembershipPlanResponse,
     MembershipPlanUpdate,
+    OnlineSubscriptionPurchaseRequest,
     SubscriptionChangePlanRequest,
     SubscriptionCreateRequest,
     SubscriptionRenewRequest,
@@ -85,11 +86,36 @@ def get_current_user_member_profile(
 ):
     member = service.get_member_by_user_id(db, current_user.id)
     if not member:
+        # Fallback check by email if account was created separately
+        from sqlalchemy import select
+        from app.modules.members.models import Member
+        fallback_member = db.scalars(select(Member).where(Member.email == current_user.email)).first()
+        if fallback_member:
+            fallback_member.user_id = current_user.id
+            db.commit()
+            db.refresh(fallback_member)
+            return fallback_member
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No member profile linked to this user account.",
         )
     return member
+
+
+@router.post(
+    "/me/subscribe",
+    response_model=MemberSubscriptionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Self-service membership enrollment and online purchase",
+    description="Allows authenticated users (prospective or active members) to purchase, activate, renew, or switch membership plans online using mock payment.",
+)
+def subscribe_online_endpoint(
+    purchase_in: OnlineSubscriptionPurchaseRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return service.purchase_online_subscription(db, current_user, purchase_in)
 
 
 # ---------------------------------------------------------

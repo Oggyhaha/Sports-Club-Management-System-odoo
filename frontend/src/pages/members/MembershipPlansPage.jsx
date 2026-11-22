@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Award, Plus, RefreshCw, CheckCircle, Percent, Edit3 } from 'lucide-react';
+import { Award, Plus, RefreshCw, CheckCircle, Percent, Edit3, CreditCard, ShieldCheck } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import StatusBadge from '../../components/common/StatusBadge';
 import Modal from '../../components/common/Modal';
+import MockPaymentModal from '../../components/members/MockPaymentModal';
 import memberService from '../../services/memberService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -14,6 +15,11 @@ import { formatCurrency } from '../../utils/formatters';
 export const MembershipPlansPage = () => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myProfile, setMyProfile] = useState(null);
+
+  // Mock Payment Gateway Modal
+  const [selectedPlanForPayment, setSelectedPlanForPayment] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Create/Edit Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,15 +35,20 @@ export const MembershipPlansPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const { showToast } = useToast();
   const isOwner = roles.includes(ROLES.OWNER);
+  const isMember = roles.includes(ROLES.MEMBER) || (!isOwner && !roles.includes(ROLES.RECEPTIONIST) && !roles.includes(ROLES.SHOP_STAFF) && !roles.includes(ROLES.HR_STAFF));
 
   const loadPlans = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await memberService.getPlans();
-      setPlans(data || []);
+      const [plansData, profileData] = await Promise.all([
+        memberService.getPlans(),
+        memberService.getMyProfile().catch(() => null),
+      ]);
+      setPlans(plansData || []);
+      setMyProfile(profileData);
     } catch (err) {
       showToast?.('Failed to load membership plans.', 'error');
     } finally {
@@ -48,6 +59,11 @@ export const MembershipPlansPage = () => {
   useEffect(() => {
     loadPlans();
   }, [loadPlans]);
+
+  const handlePaymentSuccess = () => {
+    showToast?.('Membership subscription activated successfully!', 'success');
+    loadPlans();
+  };
 
   const openCreateModal = () => {
     setEditingPlan(null);
@@ -146,65 +162,114 @@ export const MembershipPlansPage = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {plans.map((plan) => (
-            <Card key={plan.id} className="relative flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold">
-                      <Award className="w-4 h-4" />
+          {plans.map((plan) => {
+            const isMyActivePlan = myProfile?.plan_id === plan.id && myProfile?.is_active;
+            return (
+              <Card key={plan.id} className={`relative flex flex-col justify-between transition-all ${isMyActivePlan ? 'border-2 border-emerald-500 shadow-md ring-1 ring-emerald-500/20' : ''}`}>
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold">
+                        <Award className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900 text-sm">{plan.name}</h3>
+                        <p className="text-3xs text-slate-400">{plan.duration_days || 30} Days Duration</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900 text-sm">{plan.name}</h3>
-                      <p className="text-3xs text-slate-400">{plan.duration_days || 30} Days Duration</p>
+                    {isMyActivePlan ? (
+                      <span className="px-2.5 py-1 rounded-full text-2xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-2xs">
+                        <CheckCircle className="w-3.5 h-3.5" /> Your Active Plan
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-3xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                        Available
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 pb-3 border-b border-slate-100">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-slate-900">{formatCurrency(plan.monthly_fee)}</span>
+                      <span className="text-3xs text-slate-400">/ subscription period</span>
+                    </div>
+                    {plan.description && (
+                      <p className="mt-2 text-xs text-slate-600 line-clamp-2">{plan.description}</p>
+                    )}
+                  </div>
+
+                  <div className="mt-3 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="flex items-center gap-1.5">
+                        <Percent className="w-3.5 h-3.5 text-sky-600" /> Court Booking Discount
+                      </span>
+                      <span className="font-semibold text-sky-700">{plan.court_discount_percent}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="flex items-center gap-1.5">
+                        <Percent className="w-3.5 h-3.5 text-emerald-600" /> Pro-Shop Discount
+                      </span>
+                      <span className="font-semibold text-emerald-700">{plan.shop_discount_percent || 0}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="flex items-center gap-1.5">
+                        <Percent className="w-3.5 h-3.5 text-amber-600" /> Cafeteria Discount
+                      </span>
+                      <span className="font-semibold text-amber-700">{plan.bar_discount_percent || 0}%</span>
                     </div>
                   </div>
-                  <StatusBadge status={plan.is_active ? 'active' : 'inactive'} />
                 </div>
 
-                <div className="mt-4 pb-3 border-b border-slate-100">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-bold text-slate-900">{formatCurrency(plan.monthly_fee)}</span>
-                    <span className="text-3xs text-slate-400">/ subscription period</span>
-                  </div>
-                  {plan.description && (
-                    <p className="mt-2 text-xs text-slate-600 line-clamp-2">{plan.description}</p>
+                <div className="mt-5 pt-3 border-t border-slate-100 space-y-2">
+                  {isMyActivePlan ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                      onClick={() => {
+                        setSelectedPlanForPayment(plan);
+                        setShowPaymentModal(true);
+                      }}
+                      leftIcon={RefreshCw}
+                    >
+                      Renew / Extend Membership
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedPlanForPayment(plan);
+                        setShowPaymentModal(true);
+                      }}
+                      leftIcon={CreditCard}
+                    >
+                      {myProfile?.is_active ? 'Upgrade to This Plan' : 'Select Plan & Pay (Mock Gateway)'}
+                    </Button>
+                  )}
+
+                  {isOwner && (
+                    <div className="flex justify-end pt-1">
+                      <Button variant="outline" size="sm" onClick={() => openEditModal(plan)} leftIcon={Edit3}>
+                        Edit Tier
+                      </Button>
+                    </div>
                   )}
                 </div>
-
-                <div className="mt-3 space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <Percent className="w-3.5 h-3.5 text-sky-600" /> Court Booking Discount
-                    </span>
-                    <span className="font-semibold text-sky-700">{plan.court_discount_percent}%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <Percent className="w-3.5 h-3.5 text-emerald-600" /> Pro-Shop Discount
-                    </span>
-                    <span className="font-semibold text-emerald-700">{plan.shop_discount_percent || 0}%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <Percent className="w-3.5 h-3.5 text-amber-600" /> Cafeteria Discount
-                    </span>
-                    <span className="font-semibold text-amber-700">{plan.bar_discount_percent || 0}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {isOwner && (
-                <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
-                  <Button variant="outline" size="sm" onClick={() => openEditModal(plan)} leftIcon={Edit3}>
-                    Edit Tier
-                  </Button>
-                </div>
-              )}
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      {/* Mock Payment Gateway Modal */}
+      <MockPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        plan={selectedPlanForPayment}
+        onSuccess={handlePaymentSuccess}
+      />
 
       {/* Create / Edit Plan Modal */}
       <Modal

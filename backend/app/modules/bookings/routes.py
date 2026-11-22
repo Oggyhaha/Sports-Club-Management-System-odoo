@@ -31,11 +31,13 @@ router = APIRouter(prefix="/bookings", tags=["Bookings"])
     description="Derive real-time 60-minute time slot availability across active courts for a given date. Public.",
 )
 def check_court_availability(
-    target_date: date = Query(..., alias="date", description="Date to check availability for (YYYY-MM-DD)"),
+    target_date: Optional[date] = Query(None, alias="date", description="Date to check availability for (YYYY-MM-DD)"),
+    alt_date: Optional[date] = Query(None, alias="target_date", description="Alternative parameter name"),
     court_id: Optional[UUID] = Query(None, description="Optional court UUID to filter availability"),
     db: Session = Depends(get_db),
 ):
-    return service.get_court_availability(db, target_date=target_date, court_id=court_id)
+    eff_date = target_date or alt_date or date.today()
+    return service.get_court_availability(db, target_date=eff_date, court_id=court_id)
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +186,7 @@ def get_bookings(
     member_id: Optional[UUID] = Query(None, description="Filter by member UUID"),
     court_id: Optional[UUID] = Query(None, description="Filter by court UUID"),
     date_filter: Optional[date] = Query(None, alias="date", description="Filter bookings on a specific date (YYYY-MM-DD)"),
+    alt_date: Optional[date] = Query(None, alias="target_date", description="Alternative date filter alias"),
     status_filter: Optional[str] = Query(None, alias="status", description="Filter by status ('confirmed', 'cancelled')"),
     current_user: User = Depends(
         require_roles(RoleEnum.OWNER, RoleEnum.RECEPTIONIST, RoleEnum.MEMBER)
@@ -197,11 +200,12 @@ def get_bookings(
             return []
         member_id = current_user.member_profile.id
 
+    eff_date = date_filter or alt_date
     return service.list_bookings(
         db,
         member_id=member_id,
         court_id=court_id,
-        date_filter=date_filter,
+        date_filter=eff_date,
         status_filter=status_filter,
     )
 

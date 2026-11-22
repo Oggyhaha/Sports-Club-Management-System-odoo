@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Trophy,
   Calendar,
@@ -379,16 +380,28 @@ export const MemberDashboardPage = () => {
         }
       />
 
-      {/* Unlinked Member Profile Banner */}
-      {isUnlinked && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-semibold text-xs text-amber-900">Member Profile Not Linked</h4>
-            <p className="text-2xs text-amber-800 mt-0.5">
-              Your account is not linked to a club member profile. Please contact the front desk.
-            </p>
+      {/* Prospective Member / Unsubscribed Banner */}
+      {(isUnlinked || !memberProfile?.is_active) && (
+        <div className="p-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
+              <Trophy className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-amber-950">Member Profile Not Linked</h4>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Your account is not linked to a club member profile. Please contact the front desk.
+              </p>
+            </div>
           </div>
+          <Link
+            to="/members/plans"
+            className="shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Choose Plan & Activate</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       )}
 

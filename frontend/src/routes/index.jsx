@@ -217,7 +217,7 @@ export const AppRoutes = () => {
         <Route
           path="/cafeteria/kitchen"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.CAFETERIA_STAFF, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST]}>
               <CafeteriaKitchenPage />
             </RoleRoute>
           }
@@ -226,7 +226,7 @@ export const AppRoutes = () => {
         <Route
           path="/cafeteria/menu"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.CAFETERIA_STAFF, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
               <CafeteriaMenuPage />
             </RoleRoute>
           }
@@ -303,7 +303,7 @@ export const AppRoutes = () => {
         <Route
           path="/finance/clients"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.ACCOUNT_STAFF]}>
               <BusinessClientsPage />
             </RoleRoute>
           }
@@ -311,7 +311,7 @@ export const AppRoutes = () => {
         <Route
           path="/finance/invoices"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT, ROLES.MEMBER]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.ACCOUNT_STAFF, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT, ROLES.MEMBER]}>
               <InvoicesPage />
             </RoleRoute>
           }
@@ -319,7 +319,7 @@ export const AppRoutes = () => {
         <Route
           path="/finance/payments"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.ACCOUNT_STAFF, ROLES.RECEPTIONIST]}>
               <PaymentsPage />
             </RoleRoute>
           }
@@ -327,7 +327,7 @@ export const AppRoutes = () => {
         <Route
           path="/finance/receipts"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.ACCOUNT_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
               <ReceiptsPage />
             </RoleRoute>
           }

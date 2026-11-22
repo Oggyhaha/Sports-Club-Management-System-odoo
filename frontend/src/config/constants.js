@@ -9,7 +9,9 @@ export const ROLES = {
   OWNER: 'owner',
   RECEPTIONIST: 'receptionist',
   SHOP_STAFF: 'shop_staff',
+  CAFETERIA_STAFF: 'cafeteria_staff',
   HR_STAFF: 'hr_staff',
+  ACCOUNT_STAFF: 'account_staff',
   MEMBER: 'member',
   BUSINESS_CLIENT: 'business_client',
 };
@@ -17,8 +19,10 @@ export const ROLES = {
 export const ROLE_LABELS = {
   [ROLES.OWNER]: 'Club Owner',
   [ROLES.RECEPTIONIST]: 'Front Desk Receptionist',
-  [ROLES.SHOP_STAFF]: 'Shop / Cafeteria Staff',
+  [ROLES.SHOP_STAFF]: 'Shop Staff',
+  [ROLES.CAFETERIA_STAFF]: 'Cafeteria Staff',
   [ROLES.HR_STAFF]: 'HR & Payroll Staff',
+  [ROLES.ACCOUNT_STAFF]: 'Finance & Accounts Staff',
   [ROLES.MEMBER]: 'Club Member',
   [ROLES.BUSINESS_CLIENT]: 'Corporate Client',
 };

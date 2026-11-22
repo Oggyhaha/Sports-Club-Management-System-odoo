@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Menu, LogOut, User, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -16,6 +17,7 @@ import ConfirmationDialog from '../common/ConfirmationDialog';
  * - Clean sign-out flow with confirmation
  */
 export const TopNavigation = ({ onToggleSidebar }) => {
+  const navigate = useNavigate();
   const { user, roles, logout, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -46,8 +48,10 @@ export const TopNavigation = ({ onToggleSidebar }) => {
       } else {
         showToast('Session cleared locally (server could not be reached).', 'warning');
       }
+      navigate('/login', { replace: true });
     } catch (e) {
       showToast('Session terminated locally', 'warning');
+      navigate('/login', { replace: true });
     } finally {
       setIsLoggingOut(false);
       setShowLogoutConfirm(false);

@@ -53,7 +53,7 @@ export const NAVIGATION_SECTIONS = [
         label: 'Kitchen Orders Queue',
         path: '/cafeteria/kitchen',
         icon: Coffee,
-        roles: [ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST],
+        roles: [ROLES.OWNER, ROLES.CAFETERIA_STAFF, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST],
       },
       {
         id: 'hr-portal',
@@ -166,14 +166,14 @@ export const NAVIGATION_SECTIONS = [
         label: 'Kitchen Display',
         path: '/cafeteria/kitchen',
         icon: Coffee,
-        roles: [ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST],
+        roles: [ROLES.OWNER, ROLES.CAFETERIA_STAFF, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST],
       },
       {
         id: 'cafeteria-menu',
         label: 'Cafeteria Menu',
         path: '/cafeteria/menu',
         icon: Coffee,
-        roles: [ROLES.OWNER, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST, ROLES.MEMBER],
+        roles: [ROLES.OWNER, ROLES.CAFETERIA_STAFF, ROLES.SHOP_STAFF, ROLES.RECEPTIONIST, ROLES.MEMBER],
       },
     ],
   },
@@ -185,28 +185,28 @@ export const NAVIGATION_SECTIONS = [
         label: 'Invoices Ledger',
         path: '/finance/invoices',
         icon: Receipt,
-        roles: [ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT, ROLES.MEMBER],
+        roles: [ROLES.OWNER, ROLES.ACCOUNT_STAFF, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT, ROLES.MEMBER],
       },
       {
         id: 'finance-payments',
         label: 'Payments & Allocations',
         path: '/finance/payments',
         icon: CreditCard,
-        roles: [ROLES.OWNER, ROLES.RECEPTIONIST],
+        roles: [ROLES.OWNER, ROLES.ACCOUNT_STAFF, ROLES.RECEPTIONIST],
       },
       {
         id: 'finance-receipts',
         label: 'Official Receipts',
         path: '/finance/receipts',
         icon: Receipt,
-        roles: [ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
+        roles: [ROLES.OWNER, ROLES.ACCOUNT_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
       },
       {
         id: 'corporate-clients',
         label: 'Corporate Accounts',
         path: '/finance/clients',
         icon: Briefcase,
-        roles: [ROLES.OWNER],
+        roles: [ROLES.OWNER, ROLES.ACCOUNT_STAFF],
       },
     ],
   },
@@ -304,7 +304,9 @@ export const getDefaultPortalPath = (userRoles = []) => {
   if (userRoles.includes(ROLES.OWNER)) return '/owner/dashboard';
   if (userRoles.includes(ROLES.RECEPTIONIST)) return '/reception';
   if (userRoles.includes(ROLES.SHOP_STAFF)) return '/shop/pos';
+  if (userRoles.includes(ROLES.CAFETERIA_STAFF)) return '/cafeteria/kitchen';
   if (userRoles.includes(ROLES.HR_STAFF)) return '/hr/employees';
+  if (userRoles.includes(ROLES.ACCOUNT_STAFF)) return '/finance/invoices';
   if (userRoles.includes(ROLES.BUSINESS_CLIENT)) return '/corporate';
   if (userRoles.includes(ROLES.MEMBER)) return '/member';
   return '/login';

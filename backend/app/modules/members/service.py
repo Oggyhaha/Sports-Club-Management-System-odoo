@@ -2,17 +2,20 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
+import uuid
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.models import User
 from app.modules.members.models import Member, MembershipPlan, MemberSubscription
 from app.modules.members.schemas import (
     MemberCreate,
     MemberUpdate,
     MembershipPlanCreate,
     MembershipPlanUpdate,
+    OnlineSubscriptionPurchaseRequest,
     SubscriptionChangePlanRequest,
     SubscriptionCreateRequest,
     SubscriptionRenewRequest,
@@ -554,3 +557,102 @@ def list_member_subscriptions(db: Session, member_id: UUID) -> List[MemberSubscr
         .order_by(MemberSubscription.created_at.desc())
     )
     return list(db.scalars(stmt).all())
+
+
+def purchase_online_subscription(
+    db: Session,
+    current_user: User,
+    purchase_in: OnlineSubscriptionPurchaseRequest,
+) -> MemberSubscription:
+    """
+    Self-service membership enrollment & plan purchase for online users.
+    Allows prospective members to activate membership or existing members to renew/upgrade.
+    Enforces:
+    1. Plan existence, active status, and positive duration_days.
+    2. Automatic creation or linkage of Member profile to current_user.
+    3. Handles initial subscription, renewal, or plan tier switch cleanly.
+    4. Records mock payment method and transaction reference in subscription notes.
+    5. Atomically synchronizes member status, plan_id, and expiry_date.
+    """
+    plan = get_plan_by_id(db, purchase_in.plan_id)
+    if not plan or not plan.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The selected membership plan is not currently available for enrollment.",
+        )
+    if not plan.duration_days or plan.duration_days <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Membership plan '{plan.name}' has no valid duration configured.",
+        )
+
+    # Find existing member by user_id or email
+    member = db.scalars(
+        select(Member).where(Member.user_id == current_user.id).with_for_update()
+    ).first()
+    if not member:
+        member = db.scalars(
+            select(Member).where(Member.email == current_user.email).with_for_update()
+        ).first()
+
+    start_d = date.today()
+    end_d = start_d + timedelta(days=plan.duration_days)
+
+    if not member:
+        member = Member(
+            user_id=current_user.id,
+            full_name=current_user.full_name or "Club Member",
+            email=current_user.email,
+            phone=current_user.phone,
+            plan_id=plan.id,
+            start_date=start_d,
+            expiry_date=end_d,
+            is_active=True,
+        )
+        db.add(member)
+        db.flush()
+    else:
+        if not member.user_id:
+            member.user_id = current_user.id
+        member.plan_id = plan.id
+        member.start_date = start_d
+        member.expiry_date = end_d
+        member.is_active = True
+
+    # Cancel previous active subscription history records to maintain historical integrity
+    active_subs = list(
+        db.scalars(
+            select(MemberSubscription).where(
+                MemberSubscription.member_id == member.id,
+                MemberSubscription.subscription_status == "active",
+            )
+        ).all()
+    )
+    for old_sub in active_subs:
+        old_sub.subscription_status = "cancelled"
+        old_sub.cancelled_at = datetime.now(timezone.utc)
+        note_append = f"[Superseded by online purchase: {plan.name}]"
+        old_sub.notes = f"{old_sub.notes} {note_append}".strip() if old_sub.notes else note_append
+
+    txn_ref = purchase_in.payment_reference or f"MOCK-PAY-{uuid.uuid4().hex[:8].upper()}"
+    new_sub = MemberSubscription(
+        member_id=member.id,
+        plan_id=plan.id,
+        start_date=start_d,
+        end_date=end_d,
+        price_paid=plan.monthly_fee,
+        plan_name_snapshot=plan.name,
+        duration_days_snapshot=plan.duration_days,
+        court_discount_snapshot=plan.court_discount_percent,
+        shop_discount_snapshot=plan.shop_discount_percent,
+        bar_discount_snapshot=plan.bar_discount_percent,
+        subscription_status="active",
+        payment_status="paid",
+        notes=f"Online Self-Service Payment via {purchase_in.payment_method}. Txn: {txn_ref}",
+    )
+
+    db.add(new_sub)
+    db.commit()
+    db.refresh(new_sub)
+    db.refresh(member)
+    return new_sub

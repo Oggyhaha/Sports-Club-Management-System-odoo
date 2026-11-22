@@ -21,7 +21,9 @@ class RoleEnum(str, Enum):
     RECEPTIONIST = "receptionist"
     MEMBER = "member"
     SHOP_STAFF = "shop_staff"
+    CAFETERIA_STAFF = "cafeteria_staff"
     HR_STAFF = "hr_staff"
+    ACCOUNT_STAFF = "account_staff"
     BUSINESS_CLIENT = "business_client"
 
 

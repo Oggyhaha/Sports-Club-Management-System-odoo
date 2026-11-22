@@ -3,6 +3,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import bookingService from '../../services/bookingService';
 import memberService from '../../services/memberService';
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -15,13 +16,18 @@ export const CreateBookingModal = ({
   initialTime = '08:00',
   onSuccess,
 }) => {
+  const { roles, user } = useAuth();
+  const isStaff = roles.includes('owner') || roles.includes('receptionist');
+  const isClubMember = roles.includes('member') && !isStaff;
+
   const [courtId, setCourtId] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [startTime, setStartTime] = useState('08:00');
-  const [isWalkIn, setIsWalkIn] = useState(true);
+  const [isWalkIn, setIsWalkIn] = useState(!isClubMember);
   const [memberId, setMemberId] = useState('');
   const [walkInName, setWalkInName] = useState('');
   const [walkInPhone, setWalkInPhone] = useState('');
+  const [myMemberProfile, setMyMemberProfile] = useState(null);
 
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
@@ -37,15 +43,33 @@ export const CreateBookingModal = ({
       setStartTime(initialTime || '08:00');
       setErrorMsg('');
 
-      // Fetch active members list for dropdown
       setLoadingMembers(true);
       memberService
-        .getMembers({ status: 'active' })
-        .then((data) => setMembers(data || []))
-        .catch(() => setMembers([]))
+        .getMembers({ is_active: true })
+        .then((data) => {
+          const list = data || [];
+          setMembers(list);
+          if (list.length > 0) {
+            const matched = list.find((m) => m.user_id === user?.id || m.email === user?.email);
+            if (matched) {
+              setMemberId(matched.id);
+            }
+          }
+        })
+        .catch(() => {
+          memberService
+            .getMyProfile()
+            .then((prof) => {
+              if (prof) {
+                setMembers([prof]);
+                setMemberId(prof.id);
+              }
+            })
+            .catch(() => setMembers([]));
+        })
         .finally(() => setLoadingMembers(false));
     }
-  }, [isOpen, initialCourt, initialDate, initialTime, courts]);
+  }, [isOpen, initialCourt, initialDate, initialTime, courts, user]);
 
   const selectedCourt = courts.find((c) => c.id === courtId);
   const selectedMember = members.find((m) => m.id === memberId);
@@ -53,8 +77,8 @@ export const CreateBookingModal = ({
   // Dynamic fee calculation preview
   let estimatedFee = selectedCourt?.walk_in_rate || selectedCourt?.hourly_rate || 0;
   if (!isWalkIn && selectedMember && selectedCourt) {
-    const discount = selectedMember.court_discount_percent || 0;
-    estimatedFee = Number(selectedCourt.hourly_rate) * (1 - discount / 100);
+    const discount = selectedMember.plan?.court_discount_percent ?? selectedMember.court_discount_percent ?? 0;
+    estimatedFee = Number(selectedCourt.hourly_rate) * (1 - Number(discount) / 100);
   }
 
   const handleSubmit = async (e) => {
@@ -72,7 +96,7 @@ export const CreateBookingModal = ({
       return;
     }
     if (!isWalkIn && !memberId) {
-      setErrorMsg('Please select a club member.');
+      setErrorMsg(isClubMember ? 'Member profile required. Please choose a membership plan.' : 'Please select a club member.');
       return;
     }
 
@@ -172,21 +196,33 @@ export const CreateBookingModal = ({
             </div>
           </div>
         ) : (
-          <div>
-            <label className="block font-medium text-slate-700 mb-1">Select Member *</label>
-            <select
-              value={memberId}
-              onChange={(e) => setMemberId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-sky-500 text-slate-900"
-              required
-            >
-              <option value="">-- Choose Member --</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.full_name} ({m.email}) • {m.plan_name || 'Standard'}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-2">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Select Member *</label>
+              <select
+                value={memberId}
+                onChange={(e) => setMemberId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-sky-500 text-slate-900"
+                required
+              >
+                <option value="">-- Choose Member --</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.full_name} ({m.email}) • {m.plan?.name || m.plan_name || 'Member'}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedMember && (
+              <div className="p-2.5 bg-sky-50 border border-sky-200 rounded-lg text-2xs text-sky-800">
+                <span className="font-semibold">Reserving as: {selectedMember.full_name}</span>
+                {(selectedMember.plan?.court_discount_percent || selectedMember.court_discount_percent) ? (
+                  <span className="ml-2 font-bold text-emerald-700">
+                    ({selectedMember.plan?.court_discount_percent || selectedMember.court_discount_percent}% Member Discount Applied)
+                  </span>
+                ) : null}
+              </div>
+            )}
           </div>
         )}
 

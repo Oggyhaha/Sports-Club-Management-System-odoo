@@ -59,6 +59,12 @@ export const memberService = {
     return res.data;
   },
 
+  async purchaseSubscriptionOnline(data) {
+    // Requires: { plan_id, payment_method?, payment_reference? }
+    const res = await apiClient.post('/members/me/subscribe', data);
+    return res.data;
+  },
+
   // Subscriptions & Renewals
   async getMemberSubscriptions(memberId) {
     const res = await apiClient.get(`/members/${memberId}/subscriptions`);
