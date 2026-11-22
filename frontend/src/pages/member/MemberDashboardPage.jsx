@@ -652,6 +652,7 @@ export const MemberDashboardPage = () => {
                 <CourtScheduleMatrix
                   courts={courts}
                   availability={availability}
+                  bookings={myBookings}
                   selectedDate={selectedDate}
                   onSelectSlot={(court, slot) => {
                     setSelectedCourtForBooking(court);

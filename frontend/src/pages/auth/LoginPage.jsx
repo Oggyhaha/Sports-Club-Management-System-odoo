@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import Input from '../../components/forms/Input';
 import PasswordInput from '../../components/forms/PasswordInput';
 import Button from '../../components/common/Button';
-import { getDefaultPortalPath } from '../../config/navigation';
+import { getDefaultPortalPath, isPathPermittedForRoles } from '../../config/navigation';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -25,7 +25,10 @@ export const LoginPage = () => {
   // If already logged in, redirect to primary portal
   React.useEffect(() => {
     if (isAuthenticated && user?.roles) {
-      const redirectPath = location.state?.from?.pathname || getDefaultPortalPath(user.roles);
+      const fromPath = location.state?.from?.pathname;
+      const redirectPath = (fromPath && isPathPermittedForRoles(fromPath, user.roles))
+        ? fromPath
+        : getDefaultPortalPath(user.roles);
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate, location]);
@@ -69,7 +72,10 @@ export const LoginPage = () => {
 
       if (result.success) {
         showToast(`Welcome back, ${result.user.full_name}!`, 'success');
-        const targetPath = location.state?.from?.pathname || getDefaultPortalPath(result.user.roles);
+        const fromPath = location.state?.from?.pathname;
+        const targetPath = (fromPath && isPathPermittedForRoles(fromPath, result.user.roles))
+          ? fromPath
+          : getDefaultPortalPath(result.user.roles);
         navigate(targetPath, { replace: true });
       } else {
         setServerError(result.message || 'Invalid email or password. Please try again.');

@@ -36,6 +36,7 @@ allocations_router = APIRouter(prefix="/allocations", tags=["Payment Allocations
 
 FINANCE_STAFF_ROLES = [
     RoleEnum.OWNER.value,
+    RoleEnum.ACCOUNT_STAFF.value,
     RoleEnum.RECEPTIONIST.value,
     RoleEnum.SHOP_STAFF.value,
 ]
@@ -48,27 +49,27 @@ FINANCE_STAFF_ROLES = [
     "",
     response_model=BusinessClientResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_roles(RoleEnum.OWNER.value))],
+    dependencies=[Depends(require_roles([RoleEnum.OWNER.value, RoleEnum.ACCOUNT_STAFF.value]))],
 )
 def create_business_client(
     client_in: BusinessClientCreate,
     db: Session = Depends(get_db),
 ):
-    """Owner: register corporate or institutional business client."""
+    """Owner/Finance: register corporate or institutional business client."""
     return service.create_business_client(db, client_in)
 
 
 @business_clients_router.get(
     "",
     response_model=List[BusinessClientResponse],
-    dependencies=[Depends(require_roles(RoleEnum.OWNER.value))],
+    dependencies=[Depends(require_roles([RoleEnum.OWNER.value, RoleEnum.ACCOUNT_STAFF.value]))],
 )
 def list_business_clients(
     is_active: Optional[bool] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """Owner: directory of corporate business clients."""
+    """Owner/Finance: directory of corporate business clients."""
     return service.list_business_clients(db, is_active=is_active, search=search)
 
 
@@ -131,7 +132,7 @@ def get_business_client(
 @business_clients_router.put(
     "/{client_id}",
     response_model=BusinessClientResponse,
-    dependencies=[Depends(require_roles(RoleEnum.OWNER.value))],
+    dependencies=[Depends(require_roles([RoleEnum.OWNER.value, RoleEnum.ACCOUNT_STAFF.value]))],
 )
 def update_business_client(
     client_id: UUID,

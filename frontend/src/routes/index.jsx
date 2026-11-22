@@ -253,7 +253,7 @@ export const AppRoutes = () => {
         <Route
           path="/hr/attendance"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF, ROLES.CAFETERIA_STAFF, ROLES.ACCOUNT_STAFF]}>
               <AttendancePage />
             </RoleRoute>
           }
@@ -261,7 +261,7 @@ export const AppRoutes = () => {
         <Route
           path="/hr/leaves"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF, ROLES.CAFETERIA_STAFF, ROLES.ACCOUNT_STAFF]}>
               <LeavesPage />
             </RoleRoute>
           }
@@ -277,7 +277,7 @@ export const AppRoutes = () => {
         <Route
           path="/hr/payroll"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.ACCOUNT_STAFF]}>
               <PayrollPage />
             </RoleRoute>
           }
@@ -285,7 +285,7 @@ export const AppRoutes = () => {
         <Route
           path="/hr/payslips"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF, ROLES.CAFETERIA_STAFF, ROLES.ACCOUNT_STAFF]}>
               <PayrollPage />
             </RoleRoute>
           }
@@ -293,7 +293,7 @@ export const AppRoutes = () => {
         <Route
           path="/hr/me"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF, ROLES.CAFETERIA_STAFF, ROLES.ACCOUNT_STAFF]}>
               <AttendancePage />
             </RoleRoute>
           }

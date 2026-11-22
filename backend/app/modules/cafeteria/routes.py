@@ -19,6 +19,7 @@ router = APIRouter(prefix="/cafeteria", tags=["Cafeteria & Bar Operations"])
 
 CAFETERIA_STAFF_ROLES = [
     RoleEnum.OWNER.value,
+    RoleEnum.CAFETERIA_STAFF.value,
     RoleEnum.RECEPTIONIST.value,
     RoleEnum.SHOP_STAFF.value,
 ]

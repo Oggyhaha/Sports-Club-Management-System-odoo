@@ -351,18 +351,17 @@ def restock_inventory(db: Session, restock_in: InventoryRestockRequest, performe
     return movement
 
 
-def list_inventory_movements(db: Session, product_id: UUID) -> List[InventoryMovement]:
-    product = db.get(Product, product_id)
-    if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Product with ID '{product_id}' not found.",
-        )
-    stmt = (
-        select(InventoryMovement)
-        .where(InventoryMovement.product_id == product_id)
-        .order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc())
-    )
+def list_inventory_movements(db: Session, product_id: Optional[UUID] = None) -> List[InventoryMovement]:
+    stmt = select(InventoryMovement)
+    if product_id:
+        product = db.get(Product, product_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with ID '{product_id}' not found.",
+            )
+        stmt = stmt.where(InventoryMovement.product_id == product_id)
+    stmt = stmt.order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc()).limit(100)
     return list(db.scalars(stmt).all())
 
 

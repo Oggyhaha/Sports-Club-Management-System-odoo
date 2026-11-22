@@ -232,14 +232,14 @@ export const NAVIGATION_SECTIONS = [
         label: 'Attendance & Punch Clock',
         path: '/hr/attendance',
         icon: UserCheck,
-        roles: [ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
+        roles: [ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF, ROLES.CAFETERIA_STAFF, ROLES.ACCOUNT_STAFF],
       },
       {
         id: 'hr-leaves',
         label: 'Leave Applications & Review',
         path: '/hr/leaves',
         icon: CalendarDays,
-        roles: [ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
+        roles: [ROLES.OWNER, ROLES.HR_STAFF, ROLES.RECEPTIONIST, ROLES.SHOP_STAFF, ROLES.CAFETERIA_STAFF, ROLES.ACCOUNT_STAFF],
       },
       {
         id: 'hr-salary-structures',
@@ -253,14 +253,14 @@ export const NAVIGATION_SECTIONS = [
         label: 'Monthly Payroll Runs',
         path: '/hr/payroll',
         icon: FileSpreadsheet,
-        roles: [ROLES.OWNER, ROLES.HR_STAFF],
+        roles: [ROLES.OWNER, ROLES.HR_STAFF, ROLES.ACCOUNT_STAFF],
       },
       {
         id: 'hr-payslips',
         label: 'My Payslips',
         path: '/hr/payslips',
         icon: FileText,
-        roles: [ROLES.RECEPTIONIST, ROLES.SHOP_STAFF],
+        roles: [ROLES.RECEPTIONIST, ROLES.SHOP_STAFF, ROLES.CAFETERIA_STAFF, ROLES.ACCOUNT_STAFF],
       },
     ],
   },
@@ -310,4 +310,20 @@ export const getDefaultPortalPath = (userRoles = []) => {
   if (userRoles.includes(ROLES.BUSINESS_CLIENT)) return '/corporate';
   if (userRoles.includes(ROLES.MEMBER)) return '/member';
   return '/login';
+};
+
+/**
+ * Checks whether a given route path is permitted for the specified user roles.
+ */
+export const isPathPermittedForRoles = (path, userRoles = []) => {
+  if (!path || path === '/' || path === '/login' || path === '/unauthorized') return false;
+  if (userRoles.includes(ROLES.OWNER)) return true;
+  for (const section of NAVIGATION_SECTIONS) {
+    for (const item of section.items) {
+      if (item.path === path && item.roles.some((r) => userRoles.includes(r))) {
+        return true;
+      }
+    }
+  }
+  return false;
 };

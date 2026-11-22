@@ -145,6 +145,7 @@ export const ReceptionDashboardPage = () => {
       <CourtScheduleMatrix
         courts={courts}
         availability={availability}
+        bookings={todayBookings}
         selectedDate={selectedDate}
         onSelectSlot={handleSelectSlot}
         loading={loading}

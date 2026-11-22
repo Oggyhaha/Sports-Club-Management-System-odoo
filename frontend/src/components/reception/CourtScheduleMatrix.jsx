@@ -7,7 +7,8 @@ import { Calendar, Clock, Check, AlertCircle } from 'lucide-react';
  */
 export const CourtScheduleMatrix = ({
   courts = [],
-  availability = {},
+  availability = [],
+  bookings = [],
   selectedDate,
   onSelectSlot,
   loading = false,
@@ -21,11 +22,63 @@ export const CourtScheduleMatrix = ({
   }
 
   const bookedSlotsByCourt = {};
-  if (availability.booked_slots) {
+  const bookedInfoBySlot = {};
+
+  // 1. Process availability data from backend: [{ court_id, slots: [{ start_time, is_available }] }]
+  if (Array.isArray(availability)) {
+    availability.forEach((c) => {
+      const cId = c.court_id || c.id;
+      if (!bookedSlotsByCourt[cId]) bookedSlotsByCourt[cId] = new Set();
+      (c.slots || []).forEach((s) => {
+        if (!s.is_available) {
+          const d = new Date(s.start_time);
+          const hh = String(d.getUTCHours()).padStart(2, '0');
+          const mm = String(d.getUTCMinutes()).padStart(2, '0');
+          bookedSlotsByCourt[cId].add(`${hh}:${mm}`);
+
+          const timeStr = s.start_time?.split('T')[1]?.substring(0, 5);
+          if (timeStr) bookedSlotsByCourt[cId].add(timeStr);
+        }
+      });
+    });
+  } else if (availability?.booked_slots && Array.isArray(availability.booked_slots)) {
     availability.booked_slots.forEach((b) => {
       if (!bookedSlotsByCourt[b.court_id]) bookedSlotsByCourt[b.court_id] = new Set();
-      const startTimeStr = b.start_time.split('T')[1]?.substring(0, 5) || b.start_time.substring(11, 16);
-      bookedSlotsByCourt[b.court_id].add(startTimeStr);
+      const timeStr = b.start_time?.split('T')[1]?.substring(0, 5) || b.start_time?.substring(11, 16);
+      if (timeStr) bookedSlotsByCourt[b.court_id].add(timeStr);
+    });
+  }
+
+  // 2. Process bookings list (today's confirmed bookings)
+  if (Array.isArray(bookings)) {
+    bookings.forEach((b) => {
+      if (b.status === 'confirmed' && b.court_id) {
+        if (!bookedSlotsByCourt[b.court_id]) bookedSlotsByCourt[b.court_id] = new Set();
+        const startDate = new Date(b.start_time);
+        const endDate = new Date(b.end_time);
+
+        timeSlots.forEach((slot) => {
+          const [sH, sM] = slot.split(':').map(Number);
+          const slotUtcDate = new Date(startDate);
+          slotUtcDate.setUTCHours(sH, sM, 0, 0);
+
+          const slotLocalDate = new Date(startDate);
+          slotLocalDate.setHours(sH, sM, 0, 0);
+
+          if (
+            (slotUtcDate >= startDate && slotUtcDate < endDate) ||
+            (slotLocalDate >= startDate && slotLocalDate < endDate)
+          ) {
+            bookedSlotsByCourt[b.court_id].add(slot);
+            bookedInfoBySlot[`${b.court_id}_${slot}`] = b.member_name || b.walk_in_name || 'Booked';
+          }
+
+          const rawTimeStr = b.start_time?.split('T')[1]?.substring(0, 5);
+          if (rawTimeStr === slot) {
+            bookedSlotsByCourt[b.court_id].add(slot);
+          }
+        });
+      }
     });
   }
 
@@ -97,8 +150,12 @@ export const CourtScheduleMatrix = ({
                         >
                           {isBooked ? (
                             <div
-                              title={`Occupied: ${court.name} at ${slot}`}
-                              className="w-full h-8 rounded bg-slate-200/80 border border-slate-300 flex items-center justify-center text-slate-500 cursor-not-allowed select-none text-3xs"
+                              title={
+                                bookedInfoBySlot[`${court.id}_${slot}`]
+                                  ? `Occupied: ${bookedInfoBySlot[`${court.id}_${slot}`]} (${court.name} at ${slot})`
+                                  : `Occupied: ${court.name} at ${slot}`
+                              }
+                              className="w-full h-8 rounded bg-slate-200/80 border border-slate-300 flex items-center justify-center text-slate-500 cursor-not-allowed select-none text-3xs font-medium"
                             >
                               Booked
                             </div>

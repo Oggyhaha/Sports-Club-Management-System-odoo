@@ -176,6 +176,12 @@ def seed_all():
                 "role": "receptionist",
             },
             {
+                "email": "reception@championsclub.com",
+                "full_name": "Priya Sharma",
+                "phone": "+91 98765 00002",
+                "role": "receptionist",
+            },
+            {
                 "email": "member@championsclub.com",
                 "full_name": "Virat Kohli",
                 "phone": "+91 98765 00003",
@@ -579,6 +585,18 @@ def seed_all():
             db.add(dept_retail)
             db.flush()
 
+        dept_hr = db.query(Department).filter(Department.name == "Human Resources & Admin").first()
+        if not dept_hr:
+            dept_hr = Department(name="Human Resources & Admin", description="Talent acquisition, attendance, and payroll")
+            db.add(dept_hr)
+            db.flush()
+
+        dept_finance = db.query(Department).filter(Department.name == "Finance & Accounts").first()
+        if not dept_finance:
+            dept_finance = Department(name="Finance & Accounts", description="Invoicing, corporate accounts, receipts, and ledger")
+            db.add(dept_finance)
+            db.flush()
+
         desig_rec = db.query(Designation).filter(Designation.title == "Front Desk Executive").first()
         if not desig_rec:
             desig_rec = Designation(title="Front Desk Executive", department_id=dept_front.id)
@@ -589,6 +607,24 @@ def seed_all():
         if not desig_shop:
             desig_shop = Designation(title="Pro-Shop Specialist", department_id=dept_retail.id)
             db.add(desig_shop)
+            db.flush()
+
+        desig_chef = db.query(Designation).filter(Designation.title == "Head Chef").first()
+        if not desig_chef:
+            desig_chef = Designation(title="Head Chef", department_id=dept_retail.id)
+            db.add(desig_chef)
+            db.flush()
+
+        desig_hr = db.query(Designation).filter(Designation.title == "HR Operations Lead").first()
+        if not desig_hr:
+            desig_hr = Designation(title="HR Operations Lead", department_id=dept_hr.id)
+            db.add(desig_hr)
+            db.flush()
+
+        desig_fin = db.query(Designation).filter(Designation.title == "Senior Accountant").first()
+        if not desig_fin:
+            desig_fin = Designation(title="Senior Accountant", department_id=dept_finance.id)
+            db.add(desig_fin)
             db.flush()
 
         # Link Receptionist User to Employee
@@ -630,6 +666,66 @@ def seed_all():
             db.add(emp_shop)
             db.flush()
             print("[+] Linked Employee: Ramesh Kumar (Pro-Shop Specialist)")
+
+        # Link Cafeteria Staff User to Employee
+        cafe_user = users_map["cafeteria@championsclub.com"]
+        emp_cafe = db.query(Employee).filter(Employee.user_id == cafe_user.id).first()
+        if not emp_cafe:
+            emp_cafe = Employee(
+                user_id=cafe_user.id,
+                employee_code="EMP-003",
+                first_name="Sanjeev",
+                last_name="Kapoor",
+                work_email="cafeteria@championsclub.com",
+                phone="+91 98765 00007",
+                department_id=dept_retail.id,
+                designation_id=desig_chef.id,
+                joining_date=date.today() - timedelta(days=150),
+                employment_status="active",
+            )
+            db.add(emp_cafe)
+            db.flush()
+            print("[+] Linked Employee: Chef Sanjeev (Head Chef)")
+
+        # Link HR Staff User to Employee
+        hr_user = users_map["hr@championsclub.com"]
+        emp_hr = db.query(Employee).filter(Employee.user_id == hr_user.id).first()
+        if not emp_hr:
+            emp_hr = Employee(
+                user_id=hr_user.id,
+                employee_code="EMP-004",
+                first_name="Ananya",
+                last_name="Iyer",
+                work_email="hr@championsclub.com",
+                phone="+91 98765 00008",
+                department_id=dept_hr.id,
+                designation_id=desig_hr.id,
+                joining_date=date.today() - timedelta(days=200),
+                employment_status="active",
+            )
+            db.add(emp_hr)
+            db.flush()
+            print("[+] Linked Employee: Ananya Iyer (HR Operations Lead)")
+
+        # Link Finance User to Employee
+        fin_user = users_map["finance@championsclub.com"]
+        emp_fin = db.query(Employee).filter(Employee.user_id == fin_user.id).first()
+        if not emp_fin:
+            emp_fin = Employee(
+                user_id=fin_user.id,
+                employee_code="EMP-005",
+                first_name="Vikram",
+                last_name="Singhania",
+                work_email="finance@championsclub.com",
+                phone="+91 98765 00009",
+                department_id=dept_finance.id,
+                designation_id=desig_fin.id,
+                joining_date=date.today() - timedelta(days=240),
+                employment_status="active",
+            )
+            db.add(emp_fin)
+            db.flush()
+            print("[+] Linked Employee: Vikram Singhania (Senior Accountant)")
 
         # -------------------------------------------------------------
         # 9. Scheduled Friday Social Play Session

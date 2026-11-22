@@ -131,7 +131,15 @@ def get_members(
     search: Optional[str] = Query(None, description="Search term for name or email"),
     plan_id: Optional[UUID] = Query(None, description="Filter by membership plan UUID"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    current_user: User = Depends(require_roles(RoleEnum.OWNER, RoleEnum.RECEPTIONIST)),
+    current_user: User = Depends(
+        require_roles(
+            RoleEnum.OWNER,
+            RoleEnum.RECEPTIONIST,
+            RoleEnum.SHOP_STAFF,
+            RoleEnum.CAFETERIA_STAFF,
+            RoleEnum.ACCOUNT_STAFF,
+        )
+    ),
     db: Session = Depends(get_db),
 ):
     return service.list_members(db, search=search, plan_id=plan_id, is_active=is_active)
@@ -146,7 +154,15 @@ def get_members(
 )
 def create_new_member(
     member_in: MemberCreate,
-    current_user: User = Depends(require_roles(RoleEnum.OWNER, RoleEnum.RECEPTIONIST)),
+    current_user: User = Depends(
+        require_roles(
+            RoleEnum.OWNER,
+            RoleEnum.RECEPTIONIST,
+            RoleEnum.SHOP_STAFF,
+            RoleEnum.CAFETERIA_STAFF,
+            RoleEnum.ACCOUNT_STAFF,
+        )
+    ),
     db: Session = Depends(get_db),
 ):
     return service.create_member(db, member_in)
@@ -186,7 +202,15 @@ def get_member(
 def update_member_details(
     member_id: UUID,
     member_in: MemberUpdate,
-    current_user: User = Depends(require_roles(RoleEnum.OWNER, RoleEnum.RECEPTIONIST)),
+    current_user: User = Depends(
+        require_roles(
+            RoleEnum.OWNER,
+            RoleEnum.RECEPTIONIST,
+            RoleEnum.SHOP_STAFF,
+            RoleEnum.CAFETERIA_STAFF,
+            RoleEnum.ACCOUNT_STAFF,
+        )
+    ),
     db: Session = Depends(get_db),
 ):
     return service.update_member(db, member_id, member_in)
@@ -205,7 +229,15 @@ def update_member_details(
 def purchase_subscription(
     member_id: UUID,
     sub_in: SubscriptionCreateRequest,
-    current_user: User = Depends(require_roles(RoleEnum.OWNER, RoleEnum.RECEPTIONIST)),
+    current_user: User = Depends(
+        require_roles(
+            RoleEnum.OWNER,
+            RoleEnum.RECEPTIONIST,
+            RoleEnum.SHOP_STAFF,
+            RoleEnum.CAFETERIA_STAFF,
+            RoleEnum.ACCOUNT_STAFF,
+        )
+    ),
     db: Session = Depends(get_db),
 ):
     return service.create_subscription(db, member_id, sub_in)
@@ -220,7 +252,15 @@ def purchase_subscription(
 def renew_member_subscription(
     member_id: UUID,
     renew_in: SubscriptionRenewRequest,
-    current_user: User = Depends(require_roles(RoleEnum.OWNER, RoleEnum.RECEPTIONIST)),
+    current_user: User = Depends(
+        require_roles(
+            RoleEnum.OWNER,
+            RoleEnum.RECEPTIONIST,
+            RoleEnum.SHOP_STAFF,
+            RoleEnum.CAFETERIA_STAFF,
+            RoleEnum.ACCOUNT_STAFF,
+        )
+    ),
     db: Session = Depends(get_db),
 ):
     return service.renew_subscription(db, member_id, renew_in)
@@ -235,7 +275,15 @@ def renew_member_subscription(
 def change_member_plan(
     member_id: UUID,
     change_in: SubscriptionChangePlanRequest,
-    current_user: User = Depends(require_roles(RoleEnum.OWNER, RoleEnum.RECEPTIONIST)),
+    current_user: User = Depends(
+        require_roles(
+            RoleEnum.OWNER,
+            RoleEnum.RECEPTIONIST,
+            RoleEnum.SHOP_STAFF,
+            RoleEnum.CAFETERIA_STAFF,
+            RoleEnum.ACCOUNT_STAFF,
+        )
+    ),
     db: Session = Depends(get_db),
 ):
     return service.change_plan_subscription(db, member_id, change_in)

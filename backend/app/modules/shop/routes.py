@@ -186,6 +186,19 @@ def get_inventory_status(
 
 
 @router.get(
+    "/inventory/movements",
+    response_model=List[InventoryMovementResponse],
+    dependencies=[Depends(require_roles([RoleEnum.OWNER.value, RoleEnum.SHOP_STAFF.value]))],
+)
+def get_all_inventory_movements(
+    product_id: Optional[UUID] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Staff/Owner: view movement audit ledger across inventory."""
+    return service.list_inventory_movements(db, product_id=product_id)
+
+
+@router.get(
     "/inventory/{product_id}/movements",
     response_model=List[InventoryMovementResponse],
     dependencies=[Depends(require_roles([RoleEnum.OWNER.value, RoleEnum.SHOP_STAFF.value]))],
