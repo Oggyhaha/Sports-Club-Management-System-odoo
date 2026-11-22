@@ -38,9 +38,9 @@ export const CreateBookingModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      setCourtId(initialCourt?.id || (courts[0]?.id ?? ''));
-      setTargetDate(initialDate || new Date().toISOString().split('T')[0]);
-      setStartTime(initialTime || '08:00');
+      setCourtId((prev) => prev || initialCourt?.id || (courts[0]?.id ?? ''));
+      setTargetDate((prev) => prev || initialDate || new Date().toISOString().split('T')[0]);
+      setStartTime((prev) => prev || initialTime || '08:00');
       setErrorMsg('');
 
       setLoadingMembers(true);
@@ -52,7 +52,7 @@ export const CreateBookingModal = ({
           if (list.length > 0) {
             const matched = list.find((m) => m.user_id === user?.id || m.email === user?.email);
             if (matched) {
-              setMemberId(matched.id);
+              setMemberId((prev) => prev || matched.id);
             }
           }
         })
@@ -62,14 +62,19 @@ export const CreateBookingModal = ({
             .then((prof) => {
               if (prof) {
                 setMembers([prof]);
-                setMemberId(prof.id);
+                setMemberId((prev) => prev || prof.id);
               }
             })
             .catch(() => setMembers([]));
         })
         .finally(() => setLoadingMembers(false));
+    } else {
+      // Reset walk-in inputs when closed
+      setWalkInName('');
+      setWalkInPhone('');
+      setErrorMsg('');
     }
-  }, [isOpen, initialCourt, initialDate, initialTime, courts, user]);
+  }, [isOpen]);
 
   const selectedCourt = courts.find((c) => c.id === courtId);
   const selectedMember = members.find((m) => m.id === memberId);

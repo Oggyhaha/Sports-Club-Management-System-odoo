@@ -104,6 +104,72 @@ describe('Modal & ConfirmationDialog Components', () => {
     expect(document.activeElement).toBe(triggerBtn);
   });
 
+  it('does not close modal when clicking inside dialog or on input fields', () => {
+    const handleClose = vi.fn();
+    render(
+      <Modal isOpen={true} onClose={handleClose} title="Form Dialog">
+        <div>
+          <label htmlFor="user-field">Customer Name</label>
+          <input id="user-field" data-testid="user-field" placeholder="Enter name" />
+          <button data-testid="inside-btn">Save</button>
+        </div>
+      </Modal>
+    );
+
+    const input = screen.getByTestId('user-field');
+    const button = screen.getByTestId('inside-btn');
+
+    // Click on input field
+    fireEvent.mouseDown(input);
+    fireEvent.mouseUp(input);
+    fireEvent.click(input);
+    expect(handleClose).not.toHaveBeenCalled();
+
+    // Type in input field
+    fireEvent.change(input, { target: { value: 'John Doe' } });
+    expect(handleClose).not.toHaveBeenCalled();
+
+    // Click button inside dialog
+    fireEvent.mouseDown(button);
+    fireEvent.mouseUp(button);
+    fireEvent.click(button);
+    expect(handleClose).not.toHaveBeenCalled();
+  });
+
+  it('closes modal when clicking directly on the backdrop container', () => {
+    const handleClose = vi.fn();
+    const { container } = render(
+      <Modal isOpen={true} onClose={handleClose} title="Backdrop Test">
+        <div>Content</div>
+      </Modal>
+    );
+
+    const backdropContainer = container.querySelector('.cursor-default');
+    expect(backdropContainer).toBeInTheDocument();
+
+    // Mousedown and Mouseup on container triggers close
+    fireEvent.mouseDown(backdropContainer);
+    fireEvent.mouseUp(backdropContainer);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not close modal if mousedown started inside dialog and mouseup occurred on backdrop', () => {
+    const handleClose = vi.fn();
+    const { container } = render(
+      <Modal isOpen={true} onClose={handleClose} title="Drag Selection Test">
+        <input data-testid="select-input" defaultValue="Text selection" />
+      </Modal>
+    );
+
+    const input = screen.getByTestId('select-input');
+    const backdropContainer = container.querySelector('.cursor-default');
+
+    // Mousedown inside input (e.g. selecting text) and mouseup outside
+    fireEvent.mouseDown(input);
+    fireEvent.mouseUp(backdropContainer);
+    expect(handleClose).not.toHaveBeenCalled();
+  });
+
   it('ConfirmationDialog executes onConfirm and onCancel callbacks', () => {
     const handleConfirm = vi.fn();
     const handleCancel = vi.fn();
