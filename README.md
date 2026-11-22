@@ -1,265 +1,286 @@
-# Champions Club — Enterprise Sports Club Management System
+# Champions Club — Sports Club Management System
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-19.0-61DAFB.svg?logo=react&logoColor=black)](https://reactjs.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18.0-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
-[![Pytest Tests](https://img.shields.io/badge/Backend%20Tests-155%20Passed%20(100%25)-brightgreen.svg)]()
-[![Vitest Tests](https://img.shields.io/badge/Frontend%20Tests-73%20Passed%20(100%25)-brightgreen.svg)]()
+A one-day hackathon MVP for managing the essential day-to-day operations of a sports club.
 
-Champions Club is a production-grade, multi-tenant Sports Club Management ERP engineered for racquet clubs, athletics centers, and premier recreational sports facilities. The platform consolidates court operations, point-of-sale retail, cafeteria kitchen management, human resources, payroll calculation, corporate invoicing, and member self-service into an intuitive, high-availability architecture.
+## Project goal
 
----
+Replace scattered spreadsheets and messages with one simple application for:
+- Registering members and assigning membership plans
+- Managing courts and viewing availability
+- Creating and cancelling court bookings
+- Applying membership-based booking prices
+- Viewing a simple admin dashboard
 
-## System Architecture
+This is an MVP. Shop inventory, cafeteria orders, online enquiries, staff management, advanced analytics, notifications, and payment-gateway integration are future enhancements unless time remains.
+
+## Current Build Progress
+
+| Stage | Milestone | Status | Details |
+|---|---|---|---|
+| **Stage 0** | **Inspection** | ✅ Completed | Clean tree, gitignore configured, locked stack verified. |
+| **Stage 1** | **FastAPI Skeleton** | ✅ Completed | App factory, CORS middleware, `/api/v1/health` and root routes. |
+| **Stage 2** | **PostgreSQL Connection** | ✅ Completed | PostgreSQL 18 connection, connection pooling, `get_db` session dependency. |
+| **Stage 3** | **Schema & Migrations** | ✅ Completed | 4 tables (`membership_plans`, `members`, `courts`, `bookings`) with UUID primary keys, Alembic migration applied, initial seed data populated. |
+| **Stage 4** | **Member Backend** | ✅ Completed | Pydantic schemas, service layer, REST endpoints (`/api/v1/members`), 17 automated tests passing. |
+| **Stage 5** | **Court Backend** | ✅ Completed | Pydantic schemas, service layer, REST endpoints (`/api/v1/courts`), 24 automated tests passing. |
+| **Stage 6** | **Booking Engine** | ✅ Completed | 60-min sessions, 30-min boundaries, 2/day quota, overlap conflict prevention, tier discounts, 31 automated tests passing. |
+| **Milestone A** | **Authentication & RBAC Foundation** | ✅ Completed | Multi-role RBAC schema, 30-min JWTs, token revocation, owner bootstrap, staff invitations, object-level ownership guards, 72 automated tests passing. |
+| **Milestone B** | **Memberships & Member Management** | ⏳ Next | Subscriptions, renewal pricing, walk-in customer support. |
+| **Milestone C** | **Court Booking & Reception** | ⏳ Queued | Interactive calendar, reception workflows, quick booking. |
+| **Milestone D** | **Shop, Shared Inventory & Cafeteria** | ⏳ Queued | POS terminal, counter/online shared stock, kitchen orders. |
+| **Milestone E** | **Payments, Invoicing & Business Clients** | ⏳ Queued | Multi-method payments, corporate accounts, payment allocations. |
+| **Milestone F** | **Employees, Payroll & Leave** | ⏳ Queued | Staff profiles, leave approvals, monthly payslip generation. |
+| **Milestone G** | **Financial & Tax Reporting** | ⏳ Queued | Owner KPI dashboard, tax summaries, cash-up reconciliation. |
+| **Milestone H** | **Public Website & Integration** | ⏳ Queued | Public landing page, online inquiries, final demo polish. |
+
+## Implemented API Endpoints
+
+Interactive Swagger UI documentation is live at: `http://127.0.0.1:8000/docs`
+
+| Method | Endpoint | Description | Access | Status Code |
+|---|---|---|---|---|
+| `GET` | `/` | API greeting & documentation links | Public | `200 OK` |
+| `GET` | `/api/v1/health` | Service uptime and health status | Public | `200 OK` |
+| `POST` | `/api/v1/auth/register` | Public member registration (forces `member` role) | Public | `201 Created` |
+| `POST` | `/api/v1/auth/login` | User login (returns 30-min JWT with `token_version`) | Public | `200 OK` |
+| `GET` | `/api/v1/auth/me` | Fetch authenticated profile, roles, and linked member info | Authenticated | `200 OK` |
+| `PUT` | `/api/v1/auth/me` | Self-service contact update (`full_name`, `phone`) | Authenticated | `200 OK` |
+| `POST` | `/api/v1/auth/logout` | Revoke all active session tokens immediately | Authenticated | `200 OK` |
+| `POST` | `/api/v1/auth/staff/invite` | Owner issues single-use 48h invitation token | `owner` only | `200 OK` |
+| `POST` | `/api/v1/auth/staff/accept` | Invitee sets password and creates staff account | Token-gated | `201 Created` |
+| `GET` | `/api/v1/members/plans` | List membership tiers (Gold, Silver, Junior) | Public | `200 OK` |
+| `GET` | `/api/v1/members` | List members with `?search=` and `?plan_id=` filters | `owner`, `receptionist` | `200 OK` |
+| `POST` | `/api/v1/members` | Register a new member profile (walk-in or staff-assisted) | `owner`, `receptionist` | `201 Created` |
+| `GET` | `/api/v1/members/{member_id}` | Fetch member profile with plan details (Object-level ownership) | Staff or Member owner | `200 OK` |
+| `PUT` | `/api/v1/members/{member_id}` | Update member profile or active status | `owner`, `receptionist` | `200 OK` |
+| `GET` | `/api/v1/courts` | List all sports courts with `?sport_type=` filter | Public | `200 OK` |
+| `POST` | `/api/v1/courts` | Register a new physical facility | `owner` only | `201 Created` |
+| `GET` | `/api/v1/courts/{court_id}` | Fetch court details by UUID | Public | `200 OK` |
+| `PUT` | `/api/v1/courts/{court_id}` | Update court rate, name, or active status | `owner`, `receptionist` | `200 OK` |
+| `GET` | `/api/v1/bookings` | List bookings (Members see only own; Staff see all) | Authenticated | `200 OK` |
+| `POST` | `/api/v1/bookings` | Create court booking (Members can only book for themselves) | Authenticated | `201 Created` |
+| `GET` | `/api/v1/bookings/{booking_id}` | Fetch booking by ID (Object-level ownership) | Staff or Booking owner | `200 OK` |
+| `POST` | `/api/v1/bookings/{booking_id}/cancel` | Cancel booking & release court (Object-level ownership) | Staff or Booking owner | `200 OK` |
+
+## Tech stack
+
+| Area | Technology |
+|---|---|
+| Frontend | React + JavaScript (ES6+) |
+| Frontend tooling | Vite |
+| Styling | Tailwind CSS |
+| Backend | Python + FastAPI |
+| API style | REST |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Validation | Pydantic |
+| Database migrations | Alembic |
+| API server | Uvicorn |
+| API testing | Postman |
+| Automated tests | Pytest |
+| Version control | Git + GitHub |
+| Containerization | Docker (optional for the one-day MVP) |
+
+## Architecture
+
+**Modular monolith with layered separation.**
+
+The React frontend communicates with the FastAPI backend through REST endpoints. Within the backend, routes handle HTTP requests, Pydantic schemas validate data, service functions implement business rules, and SQLAlchemy handles database access.
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────────┐
-│                      Client Layer (React 19 + Vite)                            │
-│  - Public Landing Page                                                         │
-│  - Executive Owner Dashboard & Analytics                                       │
-│  - Reception Court Availability Matrix & Walk-In Intake                         │
-│  - Retail POS Terminal & Inventory Movement Audits                             │
-│  - Cafeteria Kitchen Display System (KDS) Queue                                │
-│  - HR Employee Directory, Attendance Logs, Leave & Payroll Runs                │
-│  - Finance GST Invoicing, Business Clients & Receipts                          │
-│  - Member & Corporate Self-Service Portals                                     │
-└──────────────────────────────────────┬─────────────────────────────────────────┘
-                                       │ HTTP / REST (Axios + JWT Bearer)
-                                       ▼
-┌────────────────────────────────────────────────────────────────────────────────┐
-│                     FastAPI Application Gateway & Router Layer                 │
-│  - CORS Middleware & Centralized Error Handlers                                │
-│  - OAuth2 Password Bearer Authentication with Server-Side Revocation           │
-│  - Strict Role-Based Access Control (RBAC) across 8 Distinct Roles             │
-└──────────────────────────────────────┬─────────────────────────────────────────┘
-                                       │
-                                       ▼
-┌────────────────────────────────────────────────────────────────────────────────┐
-│                        Validation Layer (Pydantic v2)                          │
-│  - Strict input schemas, sanitization, and output serialization                │
-└──────────────────────────────────────┬─────────────────────────────────────────┘
-                                       │
-                                       ▼
-┌────────────────────────────────────────────────────────────────────────────────┐
-│                    Domain Service Layer (ACID Transactions)                    │
-│  - Court Conflict Detection & Quota Enforcement                                │
-│  - Multi-tier Membership Discount Engine                                       │
-│  - Shared Stock Inventory Tracking with Automatic Movement Logging             │
-│  - Kitchen Order Ticket Lifecycle State Machine                                │
-│  - Biometric Attendance & Payroll Formula Calculation Engine                   │
-│  - Dual-tax GST Invoicing and Ledger Allocation Engine                         │
-└──────────────────────────────────────┬─────────────────────────────────────────┘
-                                       │
-                                       ▼
-┌────────────────────────────────────────────────────────────────────────────────┐
-│                     Persistence Layer (SQLAlchemy 2.0 ORM)                     │
-│  - 25 Relational Tables with Foreign Key Constraints & Cascades                │
-│  - Alembic Database Migrations                                                 │
-│  - PostgreSQL 18 with Connection Pooling                                       │
-└────────────────────────────────────────────────────────────────────────────────┘
+React (Vite)
+    |
+    | HTTP / JSON (REST)
+    v
+FastAPI routes
+    |
+Pydantic validation
+    |
+Service / business logic
+    |
+SQLAlchemy
+    |
+PostgreSQL
 ```
 
----
+Keep the first version simple. Do not add Redis, Celery, WebSockets, microservices, or a payment gateway unless a demonstrated requirement makes them necessary.
 
-## Core Domain Capabilities
+## Suggested MVP features
 
-### 1. Executive Operations & Owner Analytics
-- **Live Cash-Up & Financial Health:** Real-time visibility into daily revenue streams across membership dues, court reservations, pro-shop retail sales, and cafeteria orders.
-- **Facility Utilization Metrics:** Hourly booking density heatmaps, court utilization rates, and peak hour capacity tracking.
-- **Membership Growth Tracking:** Active subscriber counts, churn analysis, and tier distribution (Gold Elite, Silver Regular, Junior).
+### 1. Members and membership plans
+- Create and view member records.
+- Support Gold, Silver, and Junior plans.
+- Store membership start and expiry dates.
+- Show a member's current plan and status.
 
-### 2. Reception & Court Availability Matrix
-- **Visual Schedule Grid:** 06:00 to 22:00 IST court matrix displaying badminton, tennis, and squash availability with immediate booking status indicators.
-- **Walk-in & Member Reservations:** Fast-path reservation modal supporting member lookups with automated membership discounts.
-- **Conflict Prevention Engine:** Server-enforced validation ensuring strict 60-minute session blocks on 30-minute boundaries, a maximum of 2 active bookings per day per member, and immediate prevention of overlapping court slots.
+### 2. Courts and bookings
+- Create and view courts.
+- Create and cancel bookings.
+- Use one-hour sessions with start times on half-hour intervals.
+- Prevent overlapping bookings for the same court.
+- Enforce the maximum of two sessions per member per day.
+- Calculate a simple booking price based on membership plan.
 
-### 3. Community Friday Social Mixer
-- **Event Coordination:** Automated player check-ins, skill-balanced doubles pairings, and court rotations for Friday community sessions.
+### 3. Admin overview
+- Show total members.
+- Show today's bookings.
+- Show upcoming bookings.
+- Show a basic booking/revenue summary if payment data is implemented.
 
-### 4. Retail Pro-Shop Point of Sale (POS) & Inventory
-- **Barcode & SKU Terminal:** Fast barcode-friendly checkout interface supporting cash, card, UPI, and member charge accounts.
-- **Shared Stock Inventory Control:** Automated stock deductions on checkout, reorder thresholds, low-stock warnings, and immutable stock movement audits (`PURCHASE`, `SALE`, `ADJUSTMENT`).
+## One-day implementation order
 
-### 5. Cafeteria Operations & Kitchen Display System (KDS)
-- **Digital Menu & Order Placement:** Categorized beverage and snack catalog with dietary tags.
-- **Real-Time KDS Queue:** Color-coded kitchen tickets with operational status transitions (`SUBMITTED` → `PREPARING` → `READY` → `COMPLETED`).
+Work in this order and keep each stage runnable before moving on.
 
-### 6. Human Resources, Attendance & Payroll
-- **Staff Directory:** Department management, designations, emergency contacts, and active employee tracking.
-- **Biometric Attendance Tracking:** Daily check-in and check-out timestamp records with shift coordination.
-- **Leave Management:** Employee leave requests with approval/rejection workflows and balance tracking.
-- **Salary Structures & Payroll Engine:** Configurable basic salary, allowances, deductions, and automated monthly payroll calculation with PDF-ready pay slips.
+1. **Repository setup:** create the project folders, virtual environment, React app, and Git repository.
+2. **Backend foundation:** create the FastAPI app and a health-check endpoint.
+3. **Database:** configure PostgreSQL and SQLAlchemy; create the initial tables.
+4. **Member APIs:** implement create/list/view member endpoints and validate requests.
+5. **Court APIs:** implement court creation and listing.
+6. **Booking logic:** implement booking creation, cancellation, overlap checks, and the daily booking limit.
+7. **Frontend:** build a simple dashboard, members page, courts page, and booking form.
+8. **Integration:** connect React to the API and show success/error messages.
+9. **Testing:** test the happy path and important failure cases.
+10. **Demo preparation:** seed realistic sample data, verify the demo flow, and document known limitations.
 
-### 7. Corporate Accounts & GST Invoicing
-- **Corporate Client Billing:** Credit limit management, designated billing contacts, and employee roster linking.
-- **Compliant GST Invoicing:** Dual-tax invoices (CGST + SGST or IGST) with itemized service charges, payment receipt generation, and balance reconciliation.
+If time becomes tight, prioritize a working member-to-booking flow over additional modules or visual polish.
 
-### 8. Member & Corporate Self-Service Portals
-- **Member Workspace:** Digital membership pass, court booking management, tier renewal options, and expense history.
-- **Corporate Portal:** Company employee rosters, unified billing invoices, and payment tracking.
+## Suggested repository structure
 
----
+```text
+champions-club/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── core/
+│   │   │   └── database.py
+│   │   └── modules/
+│   │       ├── members/
+│   │       ├── courts/
+│   │       └── bookings/
+│   ├── tests/
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── services/
+│   └── package.json
+├── .env.example
+├── .gitignore
+└── README.md
+```
 
-## Technology Stack
+You can add `routes.py`, `schemas.py`, `models.py`, `service.py`, and `repository.py` inside each backend module as the implementation grows. Avoid creating empty layers that you do not yet need.
 
-| Component | Technology | Version | Purpose |
-|---|---|---|---|
-| **Backend Framework** | FastAPI | 0.115+ | High-throughput asynchronous REST API |
-| **ORM** | SQLAlchemy | 2.0+ | Typed domain models & transactional integrity |
-| **Data Validation** | Pydantic | 2.x | Request/response schema contracts |
-| **Relational Database** | PostgreSQL | 18+ | Primary relational datastore |
-| **Database Migrations**| Alembic | 1.14+ | Schema version control & migrations |
-| **Frontend Framework** | React | 19.0 | Reactive component architecture |
-| **Build Tool** | Vite | 6.x | Fast ESM dev server and optimized production bundle |
-| **Styling** | Tailwind CSS | 3.4+ | Enterprise design system and typography |
-| **Icons** | Lucide React | Latest | Modern SVG icon suite |
-| **HTTP Client** | Axios | 1.7+ | Configured with JWT interceptors & error handlers |
-| **Backend Testing** | Pytest | 8.x | 155 comprehensive automated tests |
-| **Frontend Testing** | Vitest & RTL | 3.x | 73 component & workflow integration tests |
-
----
-
-## Verified Demo Credentials
-
-All demo accounts share the standard master password: **`Champions2026!`**
-
-| Role | Name | Email | Default Workspace |
-|---|---|---|---|
-| **Club Owner** | Arjun Mehta | `arjun.mehta@championsclub.com` | `/owner/dashboard` |
-| **Receptionist** | Front Desk | `reception@championsclub.com` | `/bookings/availability` |
-| **Shop Staff** | Ramesh Kumar | `shop@championsclub.com` | `/shop/pos` |
-| **Cafeteria Staff** | Sunita Rao | `cafeteria@championsclub.com` | `/cafeteria/kitchen` |
-| **HR Manager** | Priya Sharma | `priya.sharma@championsclub.com` | `/hr/employees` |
-| **Finance Staff** | Suresh Patel | `accounts@championsclub.com` | `/finance/invoices` |
-| **Corporate Client** | Acme Technologies | `acme.corp@championsclub.com` | `/corporate/portal` |
-| **Club Member** | Virat Kohli | `virat.kohli@championsclub.com` | `/member/portal` |
-
----
-
-## Local Setup & Quickstart Guide
-
-This application is designed for local evaluation. No cloud or third-party external services are required.
+## Local development setup
 
 ### Prerequisites
-- Python 3.12 or newer
-- Node.js 18 or newer & npm
-- PostgreSQL 14+ running locally on port `5432`
 
-### 1. Database Configuration
-Create a local PostgreSQL database named `champions_club`:
+Install:
+- Python 3.11 or newer
+- Node.js LTS and npm
+- PostgreSQL
+- Git
 
-```sql
-CREATE DATABASE champions_club;
-```
+### Backend
 
-Update your `.env` file in the project root:
-```env
-DATABASE_URL="postgresql+psycopg://postgres:<your_password>@localhost:5432/champions_club"
-SECRET_KEY="champions-club-enterprise-production-secure-jwt-key-2026"
-```
+From the repository root:
 
-### 2. Backend Setup
-From the project root:
-
-```powershell
-# Navigate to backend
+```bash
 cd backend
 
-# Create and activate virtual environment
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run database migrations
-alembic upgrade head
-
-# Seed initial operational data
-python -m app.core.seed_data
-
-# Start FastAPI development server (runs at http://127.0.0.1:8000)
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Interactive Swagger API documentation will be available at:
-`http://127.0.0.1:8000/docs`
+Activate the virtual environment:
 
-### 3. Frontend Setup
-In a second terminal:
-
+**Windows PowerShell**
 ```powershell
-# Navigate to frontend
+.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux**
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies after creating `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start the API:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Open the interactive API documentation at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Frontend
+
+In a separate terminal, from the repository root:
+
+```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start Vite development server (runs at http://localhost:5173)
 npm run dev
 ```
 
-Visit `http://localhost:5173` to explore the public landing page and access the role-based portals.
+Vite prints the local frontend URL in the terminal (commonly `http://localhost:5173`).
 
----
+## Configuration
 
-## Live Database Inspection
+Keep secrets and machine-specific settings in a local `.env` file. Do not commit it.
 
-To verify the database state, tables, and live seed records, an automated inspector script is included at the project root:
+Create `.env.example` with placeholder values, for example:
 
-```powershell
-python inspect_data.py
+```env
+DATABASE_URL=postgresql+psycopg://username:password@localhost:5432/champions_club
+SECRET_KEY=replace-this-with-a-long-random-secret
 ```
 
-The inspector audits all 25 database tables and reports total record counts:
-- `users`, `membership_plans`, `members`
-- `courts`, `bookings`, `social_sessions`, `social_participants`
-- `shop_categories`, `shop_products`, `orders`, `order_items`, `inventory_movements`
-- `departments`, `designations`, `employees`, `attendance`, `leave_requests`, `salary_structures`, `payroll_runs`, `payslips`
-- `business_clients`, `invoices`, `invoice_items`, `payments`, `receipts`
+Use a real secret only in your local environment. Never put passwords, API keys, or production credentials in Git.
 
----
+## Important business rules to test
 
-## Automated Quality Assurance & Testing
+- A court cannot have two overlapping active bookings.
+- A booking must use a valid court, member, date, and permitted start time.
+- A member cannot exceed two sessions on the same day.
+- A cancelled booking must not block the court.
+- Membership status and pricing must follow the selected plan.
+- Booking creation should be protected against concurrent requests, not just checked in the frontend.
 
-### Backend Test Suite (Pytest)
-The backend includes 155 automated tests covering route authorization, booking constraints, transaction integrity, and edge cases:
+For a production-quality implementation, enforce critical booking-conflict rules at the database level where practical and use transactions. A frontend availability check alone is not sufficient to prevent two users booking simultaneously.
 
-```powershell
-cd backend
-pytest tests/
+## Initial Git commit
+
+After adding the project files:
+
+```bash
+git init
+git add README.md .gitignore
+git commit -m "chore: add project documentation and gitignore"
 ```
-**Result:** `155 passed in ~3.8 seconds (100% pass rate)`
 
-### Frontend Test Suite (Vitest)
-The frontend includes 73 component and integration tests verifying form validation, role routing, navigation guards, and state management:
+After creating the application folders and code, commit those separately.
 
-```powershell
-cd frontend
-npm run test
-```
-**Result:** `12 test files passed, 73 tests passed (100% pass rate)`
+## Demo flow
 
-### Production Build Verification
-Verify the production build compilation:
+A short, clear demo can follow this sequence:
 
-```powershell
-cd frontend
-npm run build
-```
-**Result:** `Vite build completed with 0 errors`
+1. Admin opens the dashboard.
+2. Admin registers a member and assigns a membership plan.
+3. Admin views the available courts.
+4. A booking is created for the member.
+5. A second overlapping booking is attempted and rejected.
+6. The dashboard displays the updated booking information.
 
----
+## Scope and honesty
 
-## Security & Compliance Architecture
-1. **Password Security:** Cryptographic password hashing using `bcrypt` via Passlib.
-2. **Stateless JWTs with Revocation:** 30-minute expiration with a database `token_version` counter ensuring immediate session invalidation on logout.
-3. **Defense-in-Depth RBAC:** Dual-layer authorization enforced both at the FastAPI route dependency level (`require_roles`) and via React Route Guards (`RoleRoute`).
-4. **Data Isolation:** Object-level authorization prevents users from accessing or modifying records belonging to other members or organizations.
-5. **ACID Transaction Boundaries:** Explicit rollback handlers on all critical state mutations (booking slots, inventory stock levels, and payroll generation).
-
----
-
-## License
-Proprietary & Confidential — Champions Club Enterprise Sports Management System. All rights reserved.
+This repository starts as a hackathon MVP, not a complete production club-management platform. Do not claim that payments, inventory, cafeteria operations, notifications, or advanced reporting are implemented until they actually work. List unfinished features as future work in the final presentation.

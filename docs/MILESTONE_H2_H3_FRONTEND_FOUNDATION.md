@@ -10,7 +10,7 @@
 - **Python Environment:** Located in `backend/.venv`, completely isolated from Node.js and frontend tooling.
 - **Milestones A–G Backend Integrity:** Completely intact; 155 automated tests passing; database records preserved (`champions_club` has 94 members, 59 courts, 47 bookings, 3 users, 6 roles, 3 plans).
 - **Backend Security & JWT Configuration:**
-  - `SECRET_KEY`: `"champions-club-enterprise-production-secure-jwt-key-2026"`
+  - `SECRET_KEY`: `"temporary-hackathon-demo-secret-key-change-in-production"`
   - `JWT_ALGORITHM`: `"HS256"`
   - `ACCESS_TOKEN_EXPIRE_MINUTES`: **30 minutes** (1,800 seconds). Confirmed via `backend/app/core/config.py`.
   - Session Revocation: On `POST /api/v1/auth/logout`, `current_user.token_version += 1` is committed to PostgreSQL, immediately invalidating any distributed access tokens with mismatched `token_version`.

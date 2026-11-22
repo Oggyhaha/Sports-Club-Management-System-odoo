@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     ]
 
     # JWT Authentication & Security
-    SECRET_KEY: str = "champions-club-enterprise-production-secure-jwt-key-2026"
+    SECRET_KEY: str = "temporary-hackathon-demo-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # Default access token lifetime: 30 minutes
 

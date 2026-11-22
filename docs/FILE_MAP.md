@@ -1,6 +1,6 @@
 # Champions Club — File Map
 
-This document tracks every critical file in the project, explaining its exact purpose, its dependencies, what calls it, and how to evaluate its enterprise architecture.
+This document tracks every critical file in the project, explaining its exact purpose, its dependencies, what calls it, and how to explain it to hackathon judges.
 
 ---
 
