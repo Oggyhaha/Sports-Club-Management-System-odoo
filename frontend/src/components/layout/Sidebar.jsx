@@ -18,7 +18,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
       {/* Mobile Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-slate-950/60 lg:hidden transition-opacity"
           onClick={onClose}
           aria-hidden="true"
         />

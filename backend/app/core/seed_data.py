@@ -28,8 +28,11 @@ from app.models import (
     Member,
     MemberSubscription,
     Court,
+    Booking,
     ProductCategory,
     Product,
+    Order,
+    OrderItem,
     InventoryMovement,
     BusinessClient,
     Invoice,
@@ -39,6 +42,10 @@ from app.models import (
     Department,
     Designation,
     Employee,
+    Attendance,
+    LeaveRequest,
+    SalaryStructure,
+    SalaryAssignment,
     SocialPlaySession,
 )
 
@@ -656,6 +663,379 @@ def seed_all():
                 db.add(social_session)
                 db.flush()
                 print(f"[+] Scheduled Social Play: Friday Night Badminton Doubles Mixer on {next_friday}")
+
+        # -------------------------------------------------------------
+        # 10. Real Court Bookings (Today & Upcoming)
+        # -------------------------------------------------------------
+        member_virat = db.query(Member).filter(Member.email == "member@championsclub.com").first()
+        member_kartik = db.query(Member).filter(Member.email == "kartik@gmail.com").first()
+        badminton1 = db.query(Court).filter(Court.name == "Badminton Court 1").first()
+        badminton2 = db.query(Court).filter(Court.name == "Badminton Court 2").first()
+        tennis1 = db.query(Court).filter(Court.name == "Tennis Court 1").first()
+        squash1 = db.query(Court).filter(Court.name == "Squash Court 1").first()
+
+        today_d = date.today()
+
+        sample_bookings = [
+            {
+                "court_id": badminton1.id if badminton1 else None,
+                "member_id": member_virat.id if member_virat else None,
+                "start_time": datetime(today_d.year, today_d.month, today_d.day, 9, 0, tzinfo=timezone.utc),
+                "end_time": datetime(today_d.year, today_d.month, today_d.day, 10, 0, tzinfo=timezone.utc),
+                "calculated_fee": Decimal("200.00"),
+                "status": "confirmed",
+                "notes": "Gold Member Morning Badminton Practice (50% Off)",
+            },
+            {
+                "court_id": badminton2.id if badminton2 else None,
+                "member_id": None,
+                "walk_in_name": "Rohit Sharma",
+                "walk_in_phone": "+91 98765 11111",
+                "start_time": datetime(today_d.year, today_d.month, today_d.day, 10, 0, tzinfo=timezone.utc),
+                "end_time": datetime(today_d.year, today_d.month, today_d.day, 11, 0, tzinfo=timezone.utc),
+                "calculated_fee": Decimal("400.00"),
+                "status": "confirmed",
+                "notes": "Walk-in Guest Court Reservation",
+            },
+            {
+                "court_id": tennis1.id if tennis1 else None,
+                "member_id": member_kartik.id if member_kartik else None,
+                "start_time": datetime(today_d.year, today_d.month, today_d.day, 8, 0, tzinfo=timezone.utc),
+                "end_time": datetime(today_d.year, today_d.month, today_d.day, 9, 0, tzinfo=timezone.utc),
+                "calculated_fee": Decimal("300.00"),
+                "status": "confirmed",
+                "notes": "Morning Tennis Singles Session",
+            },
+            {
+                "court_id": squash1.id if squash1 else None,
+                "member_id": member_virat.id if member_virat else None,
+                "start_time": datetime(today_d.year, today_d.month, today_d.day, 18, 0, tzinfo=timezone.utc),
+                "end_time": datetime(today_d.year, today_d.month, today_d.day, 19, 0, tzinfo=timezone.utc),
+                "calculated_fee": Decimal("250.00"),
+                "status": "confirmed",
+                "notes": "Evening Squash Championship Prep",
+            },
+        ]
+
+        for b_item in sample_bookings:
+            if not b_item["court_id"]:
+                continue
+            existing_b = db.query(Booking).filter(
+                Booking.court_id == b_item["court_id"],
+                Booking.start_time == b_item["start_time"],
+            ).first()
+            if not existing_b:
+                b_record = Booking(**b_item)
+                db.add(b_record)
+        db.flush()
+        print("[+] Seeded Real Court Reservations for Reception & Member Portals")
+
+        # -------------------------------------------------------------
+        # 11. Real Pro-Shop Orders & Item Records
+        # -------------------------------------------------------------
+        prod_shuttle = db.query(Product).filter(Product.sku == "YNX-AS30").first()
+        prod_grip = db.query(Product).filter(Product.sku == "YNX-AC102").first()
+        shop_user_acc = users_map.get("shop@championsclub.com")
+
+        if prod_shuttle and prod_grip:
+            existing_shop_ord = db.query(Order).filter(Order.order_number == "ORD-SHOP-001").first()
+            if not existing_shop_ord:
+                shop_ord = Order(
+                    order_number="ORD-SHOP-001",
+                    order_type="shop",
+                    customer_type="member",
+                    member_id=member_virat.id if member_virat else None,
+                    created_by_id=shop_user_acc.id if shop_user_acc else None,
+                    subtotal=Decimal("2000.00"),
+                    discount_amount=Decimal("0.00"),
+                    tax_amount=Decimal("240.00"),
+                    total_amount=Decimal("2240.00"),
+                    order_status="completed",
+                    payment_status="paid",
+                    notes="Counter Retail POS sale of tournament shuttles & grips",
+                )
+                db.add(shop_ord)
+                db.flush()
+
+                db.add(OrderItem(
+                    order_id=shop_ord.id,
+                    product_id=prod_shuttle.id,
+                    product_name_snapshot=prod_shuttle.name,
+                    sku_snapshot=prod_shuttle.sku,
+                    quantity=1,
+                    unit_price_snapshot=prod_shuttle.unit_price,
+                    tax_rate_snapshot=prod_shuttle.tax_rate,
+                    tax_amount_snapshot=Decimal("198.00"),
+                    line_subtotal=Decimal("1650.00"),
+                    line_total=Decimal("1848.00"),
+                ))
+                db.add(OrderItem(
+                    order_id=shop_ord.id,
+                    product_id=prod_grip.id,
+                    product_name_snapshot=prod_grip.name,
+                    sku_snapshot=prod_grip.sku,
+                    quantity=1,
+                    unit_price_snapshot=prod_grip.unit_price,
+                    tax_rate_snapshot=prod_grip.tax_rate,
+                    tax_amount_snapshot=Decimal("42.00"),
+                    line_subtotal=Decimal("350.00"),
+                    line_total=Decimal("392.00"),
+                ))
+                db.flush()
+                print("[+] Seeded Retail Pro-Shop Order: ORD-SHOP-001")
+
+        # -------------------------------------------------------------
+        # 12. Real Cafeteria Orders (Live Kitchen Queue Display)
+        # -------------------------------------------------------------
+        prod_shake = db.query(Product).filter(Product.sku == "CAF-SHAKE01").first()
+        prod_sandw = db.query(Product).filter(Product.sku == "CAF-SNDW01").first()
+        prod_wrap = db.query(Product).filter(Product.sku == "CAF-WRAP01").first()
+        prod_drink = db.query(Product).filter(Product.sku == "CAF-DRINK01").first()
+
+        cafe_orders_data = [
+            {
+                "order_number": "CAF-KDS-101",
+                "table_number": "T-02",
+                "order_status": "pending",
+                "kitchen_notes": "Extra chocolate whey, chilled ice",
+                "subtotal": Decimal("400.00"),
+                "total_amount": Decimal("420.00"),
+                "prod": prod_shake,
+            },
+            {
+                "order_number": "CAF-KDS-102",
+                "table_number": "T-05",
+                "order_status": "preparing",
+                "kitchen_notes": "Well toasted multigrain wrap, spicy mint dip",
+                "subtotal": Decimal("190.00"),
+                "total_amount": Decimal("199.50"),
+                "prod": prod_wrap,
+            },
+            {
+                "order_number": "CAF-KDS-103",
+                "table_number": "T-08",
+                "order_status": "ready",
+                "kitchen_notes": "Citrus electrolyte bottle cold",
+                "subtotal": Decimal("90.00"),
+                "total_amount": Decimal("94.50"),
+                "prod": prod_drink,
+            },
+            {
+                "order_number": "CAF-KDS-104",
+                "table_number": "T-01",
+                "order_status": "served",
+                "kitchen_notes": "Served at Court side table 1",
+                "subtotal": Decimal("220.00"),
+                "total_amount": Decimal("231.00"),
+                "prod": prod_sandw,
+            },
+        ]
+
+        for co_item in cafe_orders_data:
+            existing_co = db.query(Order).filter(Order.order_number == co_item["order_number"]).first()
+            if not existing_co and co_item["prod"]:
+                new_co = Order(
+                    order_number=co_item["order_number"],
+                    order_type="cafeteria",
+                    customer_type="member",
+                    member_id=member_virat.id if member_virat else None,
+                    subtotal=co_item["subtotal"],
+                    discount_amount=Decimal("0.00"),
+                    tax_amount=co_item["total_amount"] - co_item["subtotal"],
+                    total_amount=co_item["total_amount"],
+                    order_status=co_item["order_status"],
+                    payment_status="paid",
+                    table_number=co_item["table_number"],
+                    kitchen_notes=co_item["kitchen_notes"],
+                )
+                db.add(new_co)
+                db.flush()
+
+                db.add(OrderItem(
+                    order_id=new_co.id,
+                    product_id=co_item["prod"].id,
+                    product_name_snapshot=co_item["prod"].name,
+                    sku_snapshot=co_item["prod"].sku,
+                    quantity=1,
+                    unit_price_snapshot=co_item["prod"].unit_price,
+                    tax_rate_snapshot=co_item["prod"].tax_rate,
+                    tax_amount_snapshot=co_item["total_amount"] - co_item["subtotal"],
+                    line_subtotal=co_item["subtotal"],
+                    line_total=co_item["total_amount"],
+                ))
+        db.flush()
+        print("[+] Seeded Cafeteria Orders Across Kitchen States (Pending, Preparing, Ready, Served)")
+
+        # -------------------------------------------------------------
+        # 13. HR Daily Attendance Records
+        # -------------------------------------------------------------
+        if emp_rec:
+            existing_att_rec = db.query(Attendance).filter(
+                Attendance.employee_id == emp_rec.id,
+                Attendance.attendance_date == today_d,
+            ).first()
+            if not existing_att_rec:
+                db.add(Attendance(
+                    employee_id=emp_rec.id,
+                    attendance_date=today_d,
+                    check_in=datetime(today_d.year, today_d.month, today_d.day, 8, 30, tzinfo=timezone.utc),
+                    status="present",
+                    notes="Front desk morning shift check-in on time",
+                ))
+
+        if emp_shop:
+            existing_att_shop = db.query(Attendance).filter(
+                Attendance.employee_id == emp_shop.id,
+                Attendance.attendance_date == today_d,
+            ).first()
+            if not existing_att_shop:
+                db.add(Attendance(
+                    employee_id=emp_shop.id,
+                    attendance_date=today_d,
+                    check_in=datetime(today_d.year, today_d.month, today_d.day, 9, 0, tzinfo=timezone.utc),
+                    status="present",
+                    notes="Retail pro-shop register shift open",
+                ))
+        db.flush()
+        print("[+] Seeded Daily Staff Attendance Records")
+
+        # -------------------------------------------------------------
+        # 14. HR Leave Applications
+        # -------------------------------------------------------------
+        if emp_rec:
+            existing_leave = db.query(LeaveRequest).filter(
+                LeaveRequest.employee_id == emp_rec.id,
+                LeaveRequest.reason == "Family wedding function attendance",
+            ).first()
+            if not existing_leave:
+                db.add(LeaveRequest(
+                    employee_id=emp_rec.id,
+                    leave_type="casual",
+                    start_date=today_d + timedelta(days=3),
+                    end_date=today_d + timedelta(days=4),
+                    days_count=Decimal("2.0"),
+                    reason="Family wedding function attendance",
+                    status="pending",
+                ))
+
+        if emp_shop:
+            existing_leave_shop = db.query(LeaveRequest).filter(
+                LeaveRequest.employee_id == emp_shop.id,
+                LeaveRequest.reason == "Recovery from seasonal viral flu",
+            ).first()
+            if not existing_leave_shop:
+                db.add(LeaveRequest(
+                    employee_id=emp_shop.id,
+                    leave_type="sick",
+                    start_date=today_d - timedelta(days=6),
+                    end_date=today_d - timedelta(days=6),
+                    days_count=Decimal("1.0"),
+                    reason="Recovery from seasonal viral flu",
+                    status="approved",
+                    review_remarks="Approved with medical certificate",
+                    reviewed_at=datetime.now(timezone.utc) - timedelta(days=5),
+                ))
+        db.flush()
+        print("[+] Seeded HR Leave Requests (Pending & Approved)")
+
+        # -------------------------------------------------------------
+        # 15. HR Salary Structures & Employee Assignments
+        # -------------------------------------------------------------
+        sal_struct_rec = db.query(SalaryStructure).filter(SalaryStructure.name == "Front Desk Executive Grade A").first()
+        if not sal_struct_rec:
+            sal_struct_rec = SalaryStructure(
+                name="Front Desk Executive Grade A",
+                description="Base salary package for reception and shift coordination staff",
+                is_active=True,
+            )
+            db.add(sal_struct_rec)
+            db.flush()
+
+        sal_struct_shop = db.query(SalaryStructure).filter(SalaryStructure.name == "Pro-Shop Specialist Grade B").first()
+        if not sal_struct_shop:
+            sal_struct_shop = SalaryStructure(
+                name="Pro-Shop Specialist Grade B",
+                description="Retail counter sales and inventory management compensation",
+                is_active=True,
+            )
+            db.add(sal_struct_shop)
+            db.flush()
+
+        if emp_rec and sal_struct_rec:
+            existing_assign_rec = db.query(SalaryAssignment).filter(
+                SalaryAssignment.employee_id == emp_rec.id,
+            ).first()
+            if not existing_assign_rec:
+                db.add(SalaryAssignment(
+                    employee_id=emp_rec.id,
+                    salary_structure_id=sal_struct_rec.id,
+                    base_salary=Decimal("28000.00"),
+                    effective_from=date(2026, 1, 1),
+                    is_active=True,
+                ))
+
+        if emp_shop and sal_struct_shop:
+            existing_assign_shop = db.query(SalaryAssignment).filter(
+                SalaryAssignment.employee_id == emp_shop.id,
+            ).first()
+            if not existing_assign_shop:
+                db.add(SalaryAssignment(
+                    employee_id=emp_shop.id,
+                    salary_structure_id=sal_struct_shop.id,
+                    base_salary=Decimal("24000.00"),
+                    effective_from=date(2026, 1, 1),
+                    is_active=True,
+                ))
+        db.flush()
+        print("[+] Seeded HR Salary Structures & Base Pay Assignments")
+
+        # -------------------------------------------------------------
+        # 16. Member Invoices & Customer Payments (for Owner Dashboard KPIs)
+        # -------------------------------------------------------------
+        if member_virat:
+            mem_inv = db.query(Invoice).filter(Invoice.invoice_number == "INV-MEM-2026-001").first()
+            if not mem_inv:
+                owner_usr = users_map["owner@championsclub.com"]
+                mem_inv = Invoice(
+                    invoice_number="INV-MEM-2026-001",
+                    member_id=member_virat.id,
+                    subtotal=Decimal("84.75"),
+                    discount_amount=Decimal("0.00"),
+                    tax_amount=Decimal("15.25"),
+                    total_amount=Decimal("100.00"),
+                    amount_paid=Decimal("100.00"),
+                    invoice_status="paid",
+                    issue_date=today_d - timedelta(days=4),
+                    due_date=today_d + timedelta(days=26),
+                )
+                db.add(mem_inv)
+                db.flush()
+
+                db.add(InvoiceItem(
+                    invoice_id=mem_inv.id,
+                    description="Gold Tier 30-Day Club Membership Enrollment",
+                    quantity=1,
+                    unit_price=Decimal("84.75"),
+                    tax_amount=Decimal("15.25"),
+                    line_total=Decimal("100.00"),
+                ))
+
+                mem_pay = Payment(
+                    payment_reference="PAY-MEM-2026-001",
+                    amount=Decimal("100.00"),
+                    payment_method="card",
+                    payment_status="successful",
+                    recorded_by_id=owner_usr.id,
+                )
+                db.add(mem_pay)
+                db.flush()
+
+                db.add(PaymentAllocation(
+                    payment_id=mem_pay.id,
+                    invoice_id=mem_inv.id,
+                    allocated_amount=Decimal("100.00"),
+                ))
+                print("[+] Seeded Member Subscription Invoice & Paid Settlement for Owner Metrics")
 
         db.commit()
         print("=" * 60)

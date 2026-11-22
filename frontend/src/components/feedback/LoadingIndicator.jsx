@@ -23,7 +23,7 @@ export const LoadingIndicator = ({
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-white/80 backdrop-blur-xs flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-white/90 flex items-center justify-center z-50">
         {content}
       </div>
     );

@@ -109,9 +109,9 @@ export const Modal = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
+      {/* Backdrop - Clean, unblurred dark overlay */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in"
+        className="fixed inset-0 bg-slate-950/60 transition-opacity animate-in fade-in"
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />
