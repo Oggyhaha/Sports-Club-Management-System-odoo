@@ -55,7 +55,7 @@ export const memberService = {
   },
 
   async updateMyProfile(data) {
-    const res = await apiClient.put('/members/me', data);
+    const res = await apiClient.put('/auth/me', data);
     return res.data;
   },
 

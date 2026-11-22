@@ -90,10 +90,10 @@ export const NAVIGATION_SECTIONS = [
       },
       {
         id: 'bookings-list',
-        label: 'All Reservations',
+        label: 'Court Reservations',
         path: '/bookings',
         icon: CalendarDays,
-        roles: [ROLES.OWNER, ROLES.RECEPTIONIST],
+        roles: [ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.MEMBER],
       },
       {
         id: 'social-play',
@@ -185,7 +185,7 @@ export const NAVIGATION_SECTIONS = [
         label: 'Invoices Ledger',
         path: '/finance/invoices',
         icon: Receipt,
-        roles: [ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT],
+        roles: [ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT, ROLES.MEMBER],
       },
       {
         id: 'finance-payments',

@@ -138,7 +138,7 @@ export const AppRoutes = () => {
         <Route
           path="/bookings"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.MEMBER]}>
               <BookingsPage />
             </RoleRoute>
           }
@@ -311,7 +311,7 @@ export const AppRoutes = () => {
         <Route
           path="/finance/invoices"
           element={
-            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT]}>
+            <RoleRoute allowedRoles={[ROLES.OWNER, ROLES.RECEPTIONIST, ROLES.BUSINESS_CLIENT, ROLES.MEMBER]}>
               <InvoicesPage />
             </RoleRoute>
           }

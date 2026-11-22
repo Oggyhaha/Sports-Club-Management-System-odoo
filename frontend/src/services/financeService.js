@@ -16,6 +16,16 @@ export const financeService = {
     return res.data;
   },
 
+  async getMyClientProfile() {
+    const res = await apiClient.get('/business-clients/me');
+    return res.data;
+  },
+
+  async getMyClientInvoices(params = {}) {
+    const res = await apiClient.get('/business-clients/me/invoices', { params });
+    return res.data;
+  },
+
   async createClient(data) {
     // Requires: { company_name, contact_person, contact_email, contact_phone?, billing_address?, gstin? }
     const res = await apiClient.post('/business-clients', data);
