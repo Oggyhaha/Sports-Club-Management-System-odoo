@@ -12,6 +12,9 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import ProtectedRoute from './ProtectedRoute';
 import RoleRoute from './RoleRoute';
 
+// Public Pages
+import LandingPage from '../pages/public/LandingPage';
+
 // Auth Pages
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
@@ -70,8 +73,10 @@ const RootRedirect = () => {
 export const AppRoutes = () => {
   return (
     <Routes>
-      {/* Root Path */}
-      <Route path="/" element={<RootRedirect />} />
+      {/* Public Landing Page */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/home" element={<LandingPage />} />
+      <Route path="/portal" element={<RootRedirect />} />
 
       {/* Public Authentication Routes */}
       <Route element={<AuthLayout />}>

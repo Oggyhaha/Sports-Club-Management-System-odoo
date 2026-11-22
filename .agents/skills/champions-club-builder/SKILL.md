@@ -1,6 +1,6 @@
 ---
 name: champions-club-builder
-description: Builds the Champions Club Sports Club Management System incrementally as a beginner-friendly one-day hackathon MVP. Use when planning, implementing, explaining, debugging, testing, or reviewing project features. Enforces the locked Python, FastAPI, React JavaScript, PostgreSQL stack and teaches file dependencies and end-to-end data flow.
+description: Builds the Champions Club Sports Club Management System incrementally as a complete enterprise sports club ERP. Use when planning, implementing, explaining, debugging, testing, or reviewing project features. Enforces the locked Python, FastAPI, React JavaScript, PostgreSQL stack and teaches file dependencies and end-to-end data flow.
 ---
 
 # Champions Club Builder Skill
